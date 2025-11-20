@@ -52,18 +52,18 @@ Check form.
 
 (* E2 *)
 (* MANGLER - TODO - Finish writing prop in compact notation *)
-Definition prop1 (x y : id) : form := 
-  Fand (For (Fvar x) (Fnot (Fvar y))) (For (Fnot (Fvar x)) (Fvar y)).
+Definition prop1 : form := 
+  Fand (For (Fvar (Id 1)) (Fnot (Fvar (Id 2)))) (For (Fnot (Fvar (Id 1))) (Fvar (Id 2))).
 
 Definition prop1' (x y : id) : form := 
   (F( x ) F\/ (F~ F( y ))) F/\ ((F~ F( x )) F\/ F(y)).
 
-Compute (prop1 (Id 1) (Id 2)).
 
-Definition prop2 (x y : id) : form := 
-  Fimplies (Fnot (Fvar y)) (For (Fvar x) (Fvar y)).
 
-Compute (prop2 (Id 1) (Id 2)).
+Definition prop2 : form := 
+  Fimplies (Fnot (Fvar (Id 2))) (For (Fvar (Id 1)) (Fvar (Id 2))).
+
+(* Compute (prop2 (Id 1) (Id 2)). *)
 
 Definition prop3 (x : id) : form := 
   Fand (Fvar x) (Fand (Fnot (Fvar x)) (Ftrue)).
@@ -95,16 +95,30 @@ Fixpoint interp (V : valuation ) (p : form ) : bool :=
 Definition OneTrue_TwoFalse_valuation : valuation := 
   override (override (empty_valuation) (Id 2) false) (Id 1) true.
 
-Compute (interp OneTrue_TwoFalse_valuation (prop1 (Id 1) (Id 2))).
-Compute (interp OneTrue_TwoFalse_valuation (prop2 (Id 1) (Id 2))).
+Compute (interp OneTrue_TwoFalse_valuation (prop1)).
+Compute (interp OneTrue_TwoFalse_valuation (prop2)).
 Compute (interp OneTrue_TwoFalse_valuation (prop3 (Id 1))).
 
-(* TODO - E4 *)
+(* E4 *)
 Definition satisfiable (p : form ) : Prop :=
-  exists V : valuation , interp V p = true .
+  exists V : valuation , interp V p = true.
 
-Lemma test1 : satisfiable (* formula 1 *) .
-Lemma test2 : satisfiable (* formula 2 *) .
+Definition OneTrue_TwoTrue_valuation : valuation := 
+  override (override (empty_valuation) (Id 2) true) (Id 1) true.
+
+Lemma test1 : satisfiable prop1.
+Proof.
+  unfold satisfiable.
+  exists OneTrue_TwoTrue_valuation.
+  reflexivity.
+Qed.
+
+Lemma test2 : satisfiable prop2.
+Proof.
+  unfold satisfiable.
+  exists OneTrue_TwoTrue_valuation.
+  reflexivity.
+Qed.
 
 (* TODO - E5 *)
 Definition find_valuation (p : form ) : option valuation
