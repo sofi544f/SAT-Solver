@@ -29,20 +29,75 @@ Qed.
 (*  *)
 
 (* TODO - E1 *)
-Inductive form :=
-| var : id -> form
-(* fill out *) .
+Inductive form :  Type:=
+  | Fvar : id -> form  (* --- MANGLER -- ER I TVIVL OM HVORDAN VI SKAL BRUGE AT ID ER NAT??? ELLER HVAD VAR ER *)
+  | Ftrue : form
+  | Ffalse : form
+  | Fand : form -> form -> form
+  | For : form -> form -> form
+  | Fimplies : form -> form -> form
+  | Fnot : form -> form.
 
-(* TODO - E2 two coq definitions *)
+(* MISSING - TODO - OBS indsæt rigtige binding levels *)
+(* MISSING - TODO - Evt. indsæt for true, false og var *)
+Notation "F( X )" := (Fvar X) (at level 10).
+Notation "A F/\ B" := (Fand A B) (at level 10).
+Notation "A F\/ B" := (For A B) (at level 10).
+Notation "A F-> B" := (Fimplies A B) (at level 10).
+Notation "F~ A" := (Fnot A) (at level 10).
 
-(* TODO - E3 *)
-Definition valuation := id -> bool .
-Definition empty_valuation : valuation := fun x => false .
+(* Notation "True" := (Ftrue). *)
+
+Check form.
+
+(* E2 *)
+(* MANGLER - TODO - Finish writing prop in compact notation *)
+Definition prop1 (x y : id) : form := 
+  Fand (For (Fvar x) (Fnot (Fvar y))) (For (Fnot (Fvar x)) (Fvar y)).
+
+Definition prop1' (x y : id) : form := 
+  (F( x ) F\/ (F~ F( y ))) F/\ ((F~ F( x )) F\/ F(y)).
+
+Compute (prop1 (Id 1) (Id 2)).
+
+Definition prop2 (x y : id) : form := 
+  Fimplies (Fnot (Fvar y)) (For (Fvar x) (Fvar y)).
+
+Compute (prop2 (Id 1) (Id 2)).
+
+Definition prop3 (x : id) : form := 
+  Fand (Fvar x) (Fand (Fnot (Fvar x)) (Ftrue)).
+
+Compute (prop3 (Id 1)).
+
+(* E3 *)
+Definition valuation := id -> bool.
+Definition empty_valuation : valuation := fun x => false.
 Definition override (V : valuation ) (x : id) (b : bool ) : valuation :=
   fun y => if beq_id x y then b else V y.
 
-Fixpoint interp (V : valuation ) (p : form ) : bool 
-(* fill out *). admit. Admitted.
+Fixpoint interp (V : valuation ) (p : form ) : bool :=
+  match p with
+  | Fvar x => V x
+  | Ftrue => true
+  | Ffalse => false
+  | Fand f1 f2 => andb (interp V f1) (interp V f2)
+  | For f1 f2 => orb (interp V f1) (interp V f2)
+  | Fimplies f1 f2 =>
+      match interp V f1 with
+      | true => interp V f2
+      | false => true
+      end
+  | Fnot f => negb (interp V f)
+  end.
+
+(* MANGLER - TODO - OBS two already false, så unødvendigt *)
+Definition OneTrue_TwoFalse_valuation : valuation := 
+  override (override (empty_valuation) (Id 2) false) (Id 1) true.
+
+Compute (interp OneTrue_TwoFalse_valuation (prop1 (Id 1) (Id 2))).
+Compute (interp OneTrue_TwoFalse_valuation (prop2 (Id 1) (Id 2))).
+Compute (interp OneTrue_TwoFalse_valuation (prop3 (Id 1))).
 
 (* TODO - E4 *)
 Definition satisfiable (p : form ) : Prop :=
