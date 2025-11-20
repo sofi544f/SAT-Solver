@@ -1,0 +1,62 @@
+DIGEST 1cda3bdd5ad7cfc44d71c1a1e9471f9f
+FQC.project_lib
+R271:274 Stdlib.Bool.Bool <> <> lib
+R305:308 Stdlib.Lists.List <> <> lib
+R319:331 Stdlib.Lists.List ListNotations <> mod
+R362:366 Stdlib.Arith.Arith <> <> lib
+R397:399 Stdlib.Init.Nat <> <> lib
+R430:440 Stdlib.Arith.EqNat <> <> lib
+def 531:535 <> admit
+binder 538:538 <> T:1
+R549:549 QC.project_lib <> T:1 var
+R586:591 Stdlib.Strings.String <> <> lib
+R803:805 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 1615:1632 <> ex_falso_quodlibet
+binder 1644:1644 <> P:2
+R1661:1664 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R1656:1660 Corelib.Init.Logic <> False ind
+R1665:1665 QC.project_lib <> P:2 var
+ind 1864:1865 <> id
+constr 1880:1881 <> Id
+R1888:1891 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R1885:1887 Corelib.Init.Datatypes <> nat ind
+R1892:1893 QC.project_lib <> id:3 ind
+scheme 1864:1865 <> id_rect
+scheme 1864:1865 <> id_ind
+scheme 1864:1865 <> id_rec
+scheme 1864:1865 <> id_sind
+def 1910:1915 <> beq_id
+R1925:1926 QC.project_lib <> id ind
+binder 1918:1918 <> x:5
+binder 1920:1921 <> x':6
+R1931:1934 Corelib.Init.Datatypes <> bool ind
+R1951:1952 QC.project_lib <> x':6 var
+R1948:1948 QC.project_lib <> x:5 var
+R1964:1965 QC.project_lib <> Id constr
+R1970:1971 QC.project_lib <> Id constr
+R1979:1985 Stdlib.Arith.PeanoNat Nat eqb def
+prf 2007:2017 <> beq_id_refl
+R2032:2033 QC.project_lib <> id ind
+binder 2028:2028 <> x:9
+R2043:2045 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2039:2042 Corelib.Init.Datatypes <> true constr
+R2046:2051 QC.project_lib <> beq_id def
+R2053:2053 QC.project_lib <> x:9 var
+R2055:2055 QC.project_lib <> x:9 var
+R2121:2132 Stdlib.Arith.PeanoNat Nat eqb_refl thm
+R2121:2132 Stdlib.Arith.PeanoNat Nat eqb_refl thm
+prf 2148:2156 <> beq_id_eq
+R2173:2174 QC.project_lib <> id ind
+binder 2166:2166 <> x:10
+binder 2168:2169 <> x':11
+R2198:2201 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R2184:2186 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2180:2183 Corelib.Init.Datatypes <> true constr
+R2187:2192 QC.project_lib <> beq_id def
+R2194:2194 QC.project_lib <> x:10 var
+R2196:2197 QC.project_lib <> x':11 var
+R2203:2205 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2202:2202 QC.project_lib <> x:10 var
+R2206:2207 QC.project_lib <> x':11 var
+R2312:2321 Stdlib.Arith.PeanoNat Nat eqb_eq thm
+R2312:2321 Stdlib.Arith.PeanoNat Nat eqb_eq thm
