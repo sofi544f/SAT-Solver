@@ -27,18 +27,7 @@ Proof.
   apply Nat.eqb_eq in H; rewrite H; reflexivity.
 Qed.
 
-(* HELPER FUNCTIONS -- EXTRA *)
-Fixpoint map {X Y : Type} (f : X->Y) (l : list X) : list Y :=
-  match l with
-  | [] => []
-  | h :: t => (f h) :: (map f t)
-  end.
-
-Axiom functional_extensionality : forall {X Y: Type}
-                                    {f g : X -> Y},
-  (forall (x:X), f x = g x) -> f = g.
-
-(*  *)
+(* OPGAVER *)
 
 (* TODO - E1 *)
 Inductive form :  Type:=
@@ -63,24 +52,18 @@ Notation "F~ A" := (Fnot A) (at level 10).
 Check form.
 
 (* E2 *)
-(* MANGLER - TODO - Finish writing prop in compact notation *)
-Definition prop1 : form := 
-  Fand (For (Fvar (Id 1)) (Fnot (Fvar (Id 2)))) (For (Fnot (Fvar (Id 1))) (Fvar (Id 2))).
+Definition X := Id 1.
+Definition Y := Id 2.
+Definition Z := Id 3.
 
-Definition prop1' (x y : id) : form := 
-  (F( x ) F\/ (F~ F( y ))) F/\ ((F~ F( x )) F\/ F(y)).
-
-
+Definition prop1: form := 
+  (F( X ) F\/ (F~ F( Y ))) F/\ ((F~ F( X )) F\/ F(Y)).
 
 Definition prop2 : form := 
-  Fimplies (Fnot (Fvar (Id 2))) (For (Fvar (Id 1)) (Fvar (Id 2))).
-
-(* Compute (prop2 (Id 1) (Id 2)). *)
+  (F~ F(Y)) F-> (F(X) F\/ F(Y)).
 
 Definition prop3 : form := 
-  Fand (Fvar (Id 1)) (Fand (Fnot (Fvar (Id 1))) (Ftrue)).
-
-Compute (prop3).
+  F(X) F/\ ((F~ F(X)) F/\ (Ftrue)).
 
 (* E3 *)
 Definition valuation := id -> bool.
@@ -88,7 +71,6 @@ Definition empty_valuation : valuation := fun x => false.
 Definition override (V : valuation ) (x : id) (b : bool ) : valuation :=
   fun y => if beq_id x y then b else V y.
 
-(* BACK TO NORMAL *)
 Fixpoint interp (V : valuation ) (p : form ) : bool :=
   match p with
   | Fvar x => V x
@@ -104,13 +86,24 @@ Fixpoint interp (V : valuation ) (p : form ) : bool :=
   | Fnot f => negb (interp V f)
   end.
 
-(* MANGLER - TODO - OBS two already false, så unødvendigt *)
+(* Tests for korrekthed af interp *)
 Definition OneTrue_TwoFalse_valuation : valuation := 
-  override (override (empty_valuation) (Id 2) false) (Id 1) true.
+  override (empty_valuation) (Id 1) true.
 
-Compute (interp OneTrue_TwoFalse_valuation (prop1)).
-Compute (interp OneTrue_TwoFalse_valuation (prop2)).
-Compute (interp OneTrue_TwoFalse_valuation (prop3)).
+Example prop1_false : interp OneTrue_TwoFalse_valuation prop1 = false.
+Proof.
+  reflexivity.
+Qed.
+
+Example prop2_true : interp OneTrue_TwoFalse_valuation prop2 = true.
+Proof.
+  reflexivity.
+Qed.
+
+Example prop3_false : interp OneTrue_TwoFalse_valuation prop3 = false.
+Proof.
+  reflexivity.
+Qed.
 
 (* E4 *)
 Definition satisfiable (p : form ) : Prop :=
@@ -243,7 +236,6 @@ for that form.
 (* E7 *)
 (* Write 2 positive and 2 negative tests of the solver and prove these
 tests using the reflexivity tactic. *)
-(* MISSING *)
 
 (* NEGATIVE *)
 Definition prop4 : form := 
@@ -271,7 +263,6 @@ Proof.
 Qed.
 
 (* E8 *)
-
 Lemma solver_sound : forall p, solver p = true -> satisfiable p.
 Proof.
   intros p H. 
