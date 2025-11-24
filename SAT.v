@@ -52,18 +52,18 @@ Notation "F~ A" := (Fnot A) (at level 10).
 Check form.
 
 (* E2 *)
-Definition X := Id 1.
-Definition Y := Id 2.
-Definition Z := Id 3.
+Definition X := F( Id 1).
+Definition Y := F( Id 2).
+Definition Z := F( Id 3).
 
 Definition prop1: form := 
-  (F( X ) F\/ (F~ F( Y ))) F/\ ((F~ F( X )) F\/ F(Y)).
+  (X F\/ (F~ Y)) F/\ ((F~ X) F\/ Y).
 
 Definition prop2 : form := 
-  (F~ F(Y)) F-> (F(X) F\/ F(Y)).
+  (F~ Y) F-> (X F\/ Y).
 
 Definition prop3 : form := 
-  F(X) F/\ ((F~ F(X)) F/\ (Ftrue)).
+  X F/\ ((F~ X) F/\ (Ftrue)).
 
 (* E3 *)
 Definition valuation := id -> bool.
@@ -273,11 +273,122 @@ Proof.
     set (l:= generate_truthtable (list_variables p []) empty_valuation) in EH.
     induction l as [| v' l' IHl'].
     + simpl in EH. discriminate.
-    +  
-      destruct (interp v' p) eqn: Ev'.
+    + destruct (interp v' p) eqn: Ev'.
       * unfold satisfiable. exists v'. assumption.
       * simpl in EH. rewrite Ev' in EH. apply IHl' in EH. assumption. 
   - discriminate.
 Qed.  
 
 (* EXTRA *)
+
+(* EXTRA -- Optimizer *)
+(* 
+Inductive form :  Type:=
+  | Fvar : id -> form  
+  | Ftrue : form
+  | Ffalse : form
+  | Fand : form -> form -> form
+  | For : form -> form -> form
+  | Fimplies : form -> form -> form
+  | Fnot : form -> form.
+*)
+
+Fixpoint Optimizer (p : form) : form :=
+  match p with
+  (* SAME *)
+  | Fvar x => Fvar x
+  | Ftrue => Ftrue
+  | Ffalse => Ffalse
+  (* SENDES VIDERE *)
+  | Fnot f => Fnot (Optimizer f)
+  | Fimplies f1 f2 => Fimplies (Optimizer f1) (Optimizer f2)
+  (* DIREKTE OPTIMIZED *)
+  | Fand f1 f2 =>
+      match Optimizer f1, Optimizer f2 with
+      | (Fvar x), Ftrue => Fvar x
+      | Ftrue, (Fvar x) => Fvar x
+      | _, Ffalse => Ffalse
+      | Ffalse, _ => Ffalse
+      | _, _ => Fand (Optimizer f1) (Optimizer f2)
+      end
+  | For f1 f2 =>
+      match Optimizer f1, Optimizer f2 with
+      | _, Ftrue => Ftrue
+      | Ftrue, _ => Ftrue
+      | (Fvar x), Ffalse => Fvar x
+      | Ffalse, (Fvar x) => Fvar x
+      | _, _ => For (Optimizer f1) (Optimizer f2)
+      end
+  end.
+
+Compute (Optimizer (X F/\ Ftrue)).
+Compute (Optimizer (X F/\ Ffalse)).
+Compute (Optimizer ((Ftrue F\/ X) F-> (X F/\ Ftrue))).
+
+Definition Optimizer_correct : forall (p:form) (v : valuation), 
+    interp v p = interp v (Optimizer p).
+Proof.
+  intros p. induction p; intros v; try reflexivity.
+  - (* Fand *)
+    specialize IHp1 with v. specialize IHp2 with v.
+    destruct Optimizer 
+    assert (L: ((p1 F/\ p2) = (Optimizer (p1 F/\ p2))) -> (interp v (p1 F/\ p2) =
+            interp v (Optimizer (p1 F/\ p2)))).
+    {
+      intros. rewrite <- H. reflexivity.
+    }
+    apply L. destruct (Optimizer (Fand p1 p2)) eqn:E.
+    + admit.
+    + 
+    simpl.
+  - (* For *)
+  - (* Fimplies *)
+  - (* Fnot *)
+   unfold interp.
+
+Definition solver2 (p : form ) : bool :=
+  match find_valuation (Optimizer p) with
+  | Some _ => true
+  | None => false
+  end.
+
+Lemma solver2_sound : forall p, solver2 p = true -> satisfiable p.
+Proof.
+  intros p H. 
+  unfold solver in H.
+  destruct (find_valuation p) eqn:EH.
+  - unfold find_valuation in EH.
+    (* DOKUMENTATION: https://stackoverflow.com/questions/78321778/is-is-possible-to-rename-a-coq-term *)
+    set (l:= generate_truthtable (list_variables p []) empty_valuation) in EH.
+    induction l as [| v' l' IHl'].
+    + simpl in EH. discriminate.
+    + destruct (interp v' p) eqn: Ev'.
+      * unfold satisfiable. exists v'. assumption.
+      * simpl in EH. rewrite Ev' in EH. apply IHl' in EH. assumption. 
+  - unfold solver2 in H. discriminate.
+Qed.  
+
+
+Theorem optimize_0plus_sound: ∀ a,
+  aeval (optimize_0plus a) = aeval a.
+Proof.
+
+  (* | Fand (Fval x) Ftrue => Fval x
+  | Fand Ftrue (Fval x) => Fval x
+  | Fand _ Ffalse => Ffalse
+  | Fand Ffalse _ => Ffalse
+  | For _ Ftrue => Ftrue
+  | For Ftrue _ => Ftrue
+  | For (Fval x) Ffalse => Fval x
+  | For Ffalse (Fval x) => Fval x *)
+  (* SENDES VIDERE *)
+  | Fand f1 f2 => 
+  
+  end.
+  
+
+Lemma solver_complete : forall p,
+  satisfiable p -> solver p = true .
+Proof.
+  intros p E. unfold satisfiable in E. destruct E. unfold solver. unfold find_valuation.
+Admitted.
