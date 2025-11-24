@@ -84,6 +84,9 @@ Definition empty_valuation : valuation := fun x => false.
 Definition override (V : valuation ) (x : id) (b : bool ) : valuation :=
   fun y => if beq_id x y then b else V y.
 
+
+
+(* BACK TO NORMAL *)
 Fixpoint interp (V : valuation ) (p : form ) : bool :=
   match p with
   | Fvar x => V x
@@ -114,14 +117,14 @@ Definition satisfiable (p : form ) : Prop :=
 Definition OneTrue_TwoTrue_valuation : valuation := 
   override (override (empty_valuation) (Id 2) true) (Id 1) true.
 
-Lemma test1 : satisfiable prop1.
+Example test1 : satisfiable prop1.
 Proof.
   unfold satisfiable.
   exists OneTrue_TwoTrue_valuation.
   reflexivity.
 Qed.
 
-Lemma test2 : satisfiable prop2.
+Example test2 : satisfiable prop2.
 Proof.
   unfold satisfiable.
   exists OneTrue_TwoTrue_valuation.
@@ -200,6 +203,20 @@ Proof.
   simpl. reflexivity.
 Qed.
 
+(* DELETE POSSIBLY *)
+Fixpoint generate_truthtable_of_sat (truthtable : list valuation) (p : form) : list valuation :=
+  match truthtable with
+  | nil => []
+  | V :: t =>
+      match interp V p with
+      | true => [V] ++ (generate_truthtable_of_sat t p)
+      | false => generate_truthtable_of_sat t p
+      end
+  end.
+
+(* Lemma generate_truthtable_of_sat1 : forall (lV: list valuation) (p : form) (V : valuation), 
+  generate_truthtable_of_sat lv p =  *)
+
 (* Fixpoint check_truthtable (p: form) (l : list valuation) : option valuation :=
   match l with
   | nil => None
@@ -207,6 +224,18 @@ Qed.
     match interp h p with
     | false => check_truthtable p t
     | true => Some h
+    end
+  end. *)
+(* Definition filter_truth_table (p : form) : list valuation :=
+  filter (fun (V: valuation) => interp V p) (generate_truthtable (list_variables p []) empty_valuation). *)
+
+(* Definition find_valuation' (p:form) : option valuation :=
+  match filter_truth_table p with
+  | nil => None
+  | h :: t => 
+    match interp h p with
+    | true => Some h
+    | false => None
     end
   end. *)
 
@@ -225,6 +254,11 @@ Definition solver (p : form ) : bool :=
   | Some _ => true
   | None => false
   end.
+
+
+(* LEMMA *)
+Check forallb.
+Search filter.
 
 
 (*Explain the difference between satisfiable and solver. *)
@@ -275,12 +309,50 @@ Proof.
 Qed.
 
 (* TODO - E8 *)
+(* Lemma solver1 : forall p, solver p = true -> *)
+
+
 Lemma solver_sound : forall p, solver p = true -> satisfiable p.
 Proof.
   intros p H. 
   unfold solver in H.
   destruct (find_valuation p) eqn:EH.
-  - unfold satisfiable. unfold find_valuation in EH. 
+  - unfold find_valuation in EH.
+    (* DOKUMENTATION: https://stackoverflow.com/questions/78321778/is-is-possible-to-rename-a-coq-term *)
+    set (l:= generate_truthtable (list_variables p []) empty_valuation) in EH.
+    induction l as [| v' l' IHl'].
+    + simpl in EH. discriminate.
+    + unfold satisfiable.
+      Search eq.
+      destruct (v' v).
+    apply IHl'.
+      Search filter.  
+
+   assert (L: find_valuation p = Some v).
+    {
+      assumption.
+    }
+    unfold find_valuation in EH. 
+    unfold satisfiable.
+    unfold find_valuation in L.
+    induction (filter (fun V : valuation => interp V p) (generate_truthtable (list_variables p []) empty_valuation)) as [| v' l' IHl].
+    + discriminate.
+    + apply IHl.
+      unfold find_valuation in L.  
+    exists v.
+    unfold find_valuation in EH.
+    simpl in EH.
+    assertion (L1: exists (h: valuation), filter ((fun V : valuation => interp V p) (generate_truthtable (list_variables p [])) empty_valuation) = h :: _).
+empty_valuation)).
+    destruct EH eqn:EHH. inversion EH.
+    .
+    destruct EH eqn:HH.
+    unfold find_valuation in EH as EH'.
+    destruct EH.
+    destruct EH eqn: EH'.
+
+  admit.
+  - discriminate.  
   destruct H.
   inversion H.
 
