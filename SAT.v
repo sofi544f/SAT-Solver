@@ -454,29 +454,34 @@ Qed.
       end
   end.
 *)
-Fixpoint Optimizer_NNF (p : form) : form :=
-  match p with
+(* Fixpoint Optimizer_NNF (p : form) (b: bool) : form :=
+  match p, b with
   (* SAME *)
-  | Fvar x => Fvar x
-  | Ftrue => Ftrue
-  | Ffalse => Ffalse
+  | Fvar x, true => Fvar x
+  | Fvar x, false => Fnot (Fvar x)
+
+  | Ftrue, true => Ftrue
+  | Ftrue, false => Ffalse
+
+  | Ffalse, true => Ffalse
+  | Ffalse, false => Ftrue
   (* SENDES VIDERE *)
-  | Fand f1 f2 => Fand (Optimizer_NNF f1) (Optimizer_NNF f2)
-  (* | Fand f1 f2 => Fand (Optimizer_NNF f1) (Optimizer_NNF f2) *)
-  | For f1 f2 => For (Optimizer_NNF f1) (Optimizer_NNF f2)
-  | Fimplies f1 f2 => Fimplies (Optimizer_NNF f1) (Optimizer_NNF f2)
+  | Fand f1 f2, _ => Fand (Optimizer_NNF f1 _) (Optimizer_NNF f2 _)
+  | For f1 f2, _ => For (Optimizer_NNF f1 _) (Optimizer_NNF f2 _)
+  | Fimplies f1 f2, _ => Fimplies (Optimizer_NNF f1 _) (Optimizer_NNF f2 _)
   (* DIREKTE OPTIMIZED *)
-  | Fnot f => 
-      match (Optimizer_NNF f) with
+  | Fnot f, false => Optimizer_NNF f true
+  | Fnot f, true => 
+      match (Optimizer_NNF f true) with
       | Fvar x => Fnot (Fvar x)
       | Ftrue => Ffalse
       | Ffalse => Ftrue
-      (* | Fand f1 f2 => For ((Fnot f1)) ((Fnot f2))
+      | Fand f1 f2 => For ((Fnot f1)) ((Fnot f2))
       | For f1 f2 => Fand ((Fnot f1)) ((Fnot f2))
-      | Fimplies f1 f2 => For ((Fnot f1)) (f2) *)
-      | Fand f1 f2 => For (Optimizer_NNF (Fnot f1)) (Optimizer_NNF (Fnot f2))
-      | For f1 f2 => Fand (Optimizer_NNF (Fnot f1)) (Optimizer_NNF (Fnot f2))
-      | Fimplies f1 f2 => For (Optimizer_NNF (Fnot f1)) (f2)
+      (* | Fimplies f1 f2 => For ((Fnot f1)) (f2) *)
+      (* | Fand f1 f2 => For (Optimizer_NNF (Fnot f1)) (Optimizer_NNF (Fnot f2)) *)
+      (* | For f1 f2 => Fand (Optimizer_NNF (Fnot f1)) (Optimizer_NNF (Fnot f2)) *)
+      | Fimplies f1 f2 => For (Optimizer_NNF f1 false) (f2)
       (* ORIGINALT KOM TIL AT SKRIVE:
         | Fand f1 f2 => For (Optimizer_NNF (Fnot f1)) (Optimizer_NNF (Fnot f2))
         | For f1 f2 => Fand (Optimizer_NNF (Fnot f1)) (Optimizer_NNF (Fnot f2))
@@ -486,29 +491,111 @@ Fixpoint Optimizer_NNF (p : form) : form :=
       (* ORIGINALT KOM TIL AT SKRIVE: Fnot f' => Optimizer_NNF f' 
          DOG IKKE NØDVENDIGT DA VI HAR MATCHED MED Optimizer_NNF f*)
       end
+  end. *)
+Fixpoint Optimizer_NNF (p : form) (b: bool) : form :=
+  match p, b with
+  (* SAME *)
+  | Fvar x, true => Fvar x
+  | Fvar x, false => Fnot (Fvar x)
+
+  | Ftrue, true => Ftrue
+  | Ftrue, false => Ffalse
+
+  | Ffalse, true => Ffalse
+  | Ffalse, false => Ftrue
+  (* SENDES VIDERE *)
+  | Fand f1 f2, true => Fand (Optimizer_NNF f1 true) (Optimizer_NNF f2 true)
+  | Fand f1 f2, false => For (Optimizer_NNF f1 false) (Optimizer_NNF f2 false)
+
+  | For f1 f2, true => For (Optimizer_NNF f1 true) (Optimizer_NNF f2 true)
+  | For f1 f2, false => Fand (Optimizer_NNF f1 false) (Optimizer_NNF f2 false)
+
+  | Fimplies f1 f2, true => For (Optimizer_NNF f1 false) (Optimizer_NNF f2 true)
+  | Fimplies f1 f2, false => Fand (Optimizer_NNF f1 true) (Optimizer_NNF f2 false)
+  (* GAMLE DEF:
+  | Fimplies f1 f2, true => Fimplies (Optimizer_NNF f1 true) (Optimizer_NNF f2 true)
+  | Fimplies f1 f2, false => For (Optimizer_NNF f1 false) (Optimizer_NNF f2 true)
+  *)
+  (* DIREKTE OPTIMIZED *)
+  | Fnot f, false => Optimizer_NNF f true
+  | Fnot f, true => Optimizer_NNF f false
   end.
 
-  
-  
-  (* DIREKTE OPTIMIZED *)
-  | Fand f1 f2 =>
-      match Optimizer f1, Optimizer f2 with
-      | Ftrue, (Fvar x) => Fvar x
-      | (Fvar x), Ftrue => Fvar x
-      | _, Ffalse => Ffalse
-      | Ffalse, _ => Ffalse
-      | _, _ => Fand (Optimizer f1) (Optimizer f2)
-      end
-  | For f1 f2 => 
-  (* For (Optimizer f1) (Optimizer f2) *)
-      match Optimizer f1, Optimizer f2 with
-      | Ftrue, _ => Ftrue
-      | _, Ftrue => Ftrue
-      | (Fvar x), Ffalse => Fvar x
-      | Ffalse, (Fvar x) => Fvar x
-      | _, _ => For (Optimizer f1) (Optimizer f2)
-      end
+Lemma Optimizer_NNF_false_negb : forall (p:form) (v : valuation),
+    negb (interp v (Optimizer_NNF p true)) = interp v (Optimizer_NNF p false).
+Proof.
+  intros p v. induction p; try reflexivity.
+  - simpl. rewrite <- IHp1. rewrite <- IHp2. apply negb_andb.
+  - simpl. rewrite <- IHp1. rewrite <- IHp2. apply negb_orb.
+  - simpl. rewrite <- IHp1. rewrite <-IHp2. rewrite negb_orb. rewrite negb_involutive. reflexivity.
+  - simpl. rewrite <- IHp. apply negb_involutive.
+Qed. 
+
+Definition Optimizer_NNF_correct : forall (p:form) (v : valuation), 
+    interp v p = interp v (Optimizer_NNF p true).
+Proof.
+  intros p v.
+  induction p ; try reflexivity.
+  -  
+    destruct (Optimizer p1) eqn: Ep1 ; 
+    try (
+          rwrt_h1h2 IHp1 IHp2 ; 
+          reflexivity
+        ) ;
+    simpl ; destruct (Optimizer p2) eqn:Ep2 ; try (rwrt_h1h2 IHp1 IHp2; reflexivity) ;
+    try (
+          rwrt_h1h2 IHp1 IHp2 ;
+          apply andb_true_r 
+        ) ;
+    try (
+          rwrt_h1h2 IHp1 IHp2 ;
+          apply andb_false_r 
+        ).
+  - 
+    destruct (Optimizer p1) eqn: Ep1 ;
+    try (
+          rwrt_h1h2 IHp1 IHp2 ; 
+          reflexivity
+        ) ;
+    simpl ; destruct (Optimizer p2) eqn:Ep2 ; try (rwrt_h1h2 IHp1 IHp2; reflexivity) ;
+    try (
+          rwrt_h1h2 IHp1 IHp2 ;
+          apply orb_true_r 
+        ) ;
+    try (
+          rwrt_h1h2 IHp1 IHp2 ;
+          apply orb_false_r 
+        ).
+  - simpl. rewrite IHp1. rewrite IHp2. rewrite <- Optimizer_NNF_false_negb. 
+    apply implb_orb.
+  - simpl. rewrite IHp. rewrite <- Optimizer_NNF_false_negb. reflexivity.  
+Qed. 
+
+Definition solverNNF (p : form ) : bool :=
+  match find_valuation (Optimizer_NNF p true) with
+  | Some _ => true
+  | None => false
   end.
+
+Lemma solverNNF_sound : forall p, solverNNF p = true -> satisfiable p.
+Proof.
+  intros p H. 
+  unfold solverNNF in H.
+  destruct (find_valuation (Optimizer_NNF p true)) eqn:EH.
+  - unfold find_valuation in EH. 
+    unfold filter in EH. 
+    assert (L: forall x, interp x p = interp x (Optimizer p)).
+    {
+      apply Optimizer_correct.
+    }
+    set (tt := generate_truthtable (list_variables (Optimizer p)) empty_valuation) in EH.
+    induction tt as [| v' l' IHl'].
+    + discriminate.
+    + destruct (interp v' (Optimizer p)) eqn: Ev'.
+      * rewrite <- Optimizer_correct in Ev'. unfold satisfiable. exists v'. assumption.
+      * apply IHl'. assumption.
+  - discriminate.
+Qed.
 
 (* EXTRA -- Conjunctive Normal Form *)
 
