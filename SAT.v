@@ -899,8 +899,10 @@ Lemma pls2 : forall p n,
   (OptimizerCNF_run (OptimizerCNF_step (p)) n)
   = (OptimizerCNF_step (OptimizerCNF_run (p) n)).
 Proof.
-  intros. induction n.
-  - 
+  intros. generalize dependent p. induction n.
+  - reflexivity.
+  - intros p. simpl. rewrite IHn with (p:= (OptimizerCNF_step p)). reflexivity. 
+Qed. 
 
 Definition Optimizer_CNF_correct : forall (p:form) (v : valuation), 
     interp v p = interp v (OptimizerCNF p).
@@ -910,43 +912,8 @@ Proof.
   set (n := (Count_Fand (Optimizer_NNF p true) * Count_Fand_For (Optimizer_NNF p true))).
   induction n.
   - simpl. apply Optimizer_NNF_correct.
-  - simpl. rewrite <-OptimizerCNF_step_preserves_interp.
-  unfold OptimizerCNF_run.
-  induction p ; try reflexivity.
-  - simpl.  
-    destruct (Optimizer p1) eqn: Ep1 ; 
-    try (
-          rwrt_h1h2 IHp1 IHp2 ; 
-          reflexivity
-        ) ;
-    simpl ; destruct (Optimizer p2) eqn:Ep2 ; try (rwrt_h1h2 IHp1 IHp2; reflexivity) ;
-    try (
-          rwrt_h1h2 IHp1 IHp2 ;
-          apply andb_true_r 
-        ) ;
-    try (
-          rwrt_h1h2 IHp1 IHp2 ;
-          apply andb_false_r 
-        ).
-  - 
-    destruct (Optimizer p1) eqn: Ep1 ;
-    try (
-          rwrt_h1h2 IHp1 IHp2 ; 
-          reflexivity
-        ) ;
-    simpl ; destruct (Optimizer p2) eqn:Ep2 ; try (rwrt_h1h2 IHp1 IHp2; reflexivity) ;
-    try (
-          rwrt_h1h2 IHp1 IHp2 ;
-          apply orb_true_r 
-        ) ;
-    try (
-          rwrt_h1h2 IHp1 IHp2 ;
-          apply orb_false_r 
-        ).
-  - simpl. rewrite IHp1. rewrite IHp2. rewrite <- Optimizer_NNF_false_negb. 
-    apply implb_orb.
-  - simpl. rewrite IHp. rewrite <- Optimizer_NNF_false_negb. reflexivity.  
-Qed. 
+  - simpl. rewrite pls2 with (p:= (Optimizer_NNF p true)). rewrite <-OptimizerCNF_step_preserves_interp. assumption. 
+Qed.
 
 (* OBS - ANDEN IDÉ ER AT GENTAGE OPTIMIZER PÅ FORM N GANGE (TILSVARENDE ANTAL ) 
 -- NEJ VILLE IKKE VIRKE
