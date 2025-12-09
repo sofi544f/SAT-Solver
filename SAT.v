@@ -827,12 +827,12 @@ Fixpoint OptimizerCNF_step (p : form) : form :=
     (* SENDES VIDERE *)
     | For f1 f2 =>
         match f1, f2 with
+        | Fand x y, z => Fand (For z x) (For z y)
         | x, Fand y z => Fand (For x y) (For x z)
-        | Fand x y, z => Fand (For x z) (For y z)
         | f1', f2' => For (OptimizerCNF_step f1') (OptimizerCNF_step f2')
       end
     (* IKKE MULIG *)
-    | s => s
+    | Fimplies f1 f2 => Fimplies (OptimizerCNF_step f1) (OptimizerCNF_step f2)
   end.
 
 Fixpoint OptimizerCNF_run (p : form) (n : nat): form :=
@@ -841,29 +841,66 @@ Fixpoint OptimizerCNF_run (p : form) (n : nat): form :=
   | S n' => OptimizerCNF_run (OptimizerCNF_step p) n'
   end.
 
+Lemma pls : forall v p1 p2,
+  interp v (OptimizerCNF_step p1)
+|| interp v (OptimizerCNF_step p2) =
+interp v
+((OptimizerCNF_step p1)
+F\/ (OptimizerCNF_step p2)).
+Proof.
+  intros.  
+  induction p1, p2 ;
+  try reflexivity;
+  try (simpl ; rewrite orb_andb_distrib_r ; reflexivity);
+  try (simpl; rewrite orb_andb_distrib_l; reflexivity);
+  try ( rewrite IHp2; reflexivity);
+  try (simpl ; repeat rewrite orb_true_r ; reflexivity).
+Qed.
+
 Definition OptimizerCNF_step_preserves_interp : forall p v,
-  interp v (Optimizer_NNF p true) 
-  = interp v (OptimizerCNF_step (Optimizer_NNF p true)).
+  interp v p
+  = interp v (OptimizerCNF_step p).
 Proof.
   intros. 
   induction p; try reflexivity.
   - simpl. rewrite IHp1. rewrite IHp2. reflexivity.
-  - simpl. destruct (Optimizer_NNF p1 true), (Optimizer_NNF p2 true); 
-    try reflexivity;
-    try (rewrite IHp1; rewrite IHp2 ; reflexivity);
-    try (simpl; rewrite orb_andb_distrib_r; reflexivity);
-    try (simpl; rewrite orb_andb_distrib_l; reflexivity).
-  - simpl. simpl in IHp1. rewrite <-Optimizer_NNF_false_negb. 
-   rewrite IHp1. rewrite IHp2. reflexivity. 
-    + simpl. rewrite orb_andb_distrib_l. reflexivity. rewrite IHp1. rewrite IHp2. simpl.
-    + simpl. Search andb. rewrite orb_andb_distrib_r. reflexivity.
-    + rewrite IHp1. rewrite IHp2. simpl. reflexivity.
-
-    simpl in IHp1. simpl in IHp2. 
-Admitted.
+  - simpl. rewrite IHp1. rewrite IHp2. simpl.
+    destruct p1 eqn:Ep1; destruct p2 eqn:Ep2 ; try apply pls.
+    + simpl. rewrite <-orb_andb_distrib_r. simpl in IHp2. rewrite IHp2. reflexivity.
+    + simpl. simpl in IHp2. rewrite IHp2. reflexivity.
+    + simpl. rewrite <-orb_andb_distrib_r. simpl in IHp1. rewrite IHp1.
+      Search orb. rewrite orb_comm. reflexivity.
+    + simpl. apply orb_true_r.
+    + simpl. rewrite orb_false_r. simpl in IHp1. rewrite IHp1. reflexivity.
+    + simpl. simpl in IHp2. simpl in IHp1. rewrite <-IHp1. rewrite <- IHp2. rewrite <-orb_andb_distrib_r.
+      apply orb_comm.
+    + simpl in IHp1. simpl in IHp2. simpl. rewrite <-IHp2. rewrite <- IHp1. 
+      rewrite <-orb_andb_distrib_r. Search orb. rewrite orb_assoc.
+      Search andb. set (C:= interp v f3 || interp v f4). symmetry. rewrite <-orb_comm. 
+      subst. subst C. rewrite orb_assoc. reflexivity.
+    + simpl in IHp1. simpl in IHp2. simpl. rewrite <-IHp2. rewrite<-IHp1.
+      rewrite <-orb_andb_distrib_r. apply orb_comm.
+    + simpl. simpl in IHp1. simpl in IHp2. rewrite <-IHp2. 
+      rewrite <-orb_andb_distrib_r. rewrite <- IHp1. rewrite orb_comm. reflexivity.
+    + simpl. simpl in IHp1. simpl in IHp2. rewrite<- IHp1. rewrite<-IHp2.
+      rewrite <-orb_andb_distrib_r. reflexivity.
+    + simpl. simpl in IHp1. simpl in IHp2. rewrite<- IHp1. rewrite <- IHp2. 
+      rewrite <-orb_andb_distrib_r. reflexivity.
+    + simpl. simpl in IHp1. simpl in IHp2. rewrite <-IHp1. rewrite <-IHp2. rewrite orb_andb_distrib_r.
+      reflexivity. 
+  - simpl. rewrite IHp1. rewrite IHp2. reflexivity.
+  - simpl. rewrite IHp. reflexivity. 
+Qed.     
 
 Definition OptimizerCNF (p : form) : form :=
   OptimizerCNF_run (Optimizer_NNF p true) (mult (Count_Fand (Optimizer_NNF p true)) (Count_Fand_For (Optimizer_NNF p true))).
+
+Lemma pls2 : forall p n,
+  (OptimizerCNF_run (OptimizerCNF_step (p)) n)
+  = (OptimizerCNF_step (OptimizerCNF_run (p) n)).
+Proof.
+  intros. induction n.
+  - 
 
 Definition Optimizer_CNF_correct : forall (p:form) (v : valuation), 
     interp v p = interp v (OptimizerCNF p).
@@ -873,7 +910,7 @@ Proof.
   set (n := (Count_Fand (Optimizer_NNF p true) * Count_Fand_For (Optimizer_NNF p true))).
   induction n.
   - simpl. apply Optimizer_NNF_correct.
-  - simpl. 
+  - simpl. rewrite <-OptimizerCNF_step_preserves_interp.
   unfold OptimizerCNF_run.
   induction p ; try reflexivity.
   - simpl.  
