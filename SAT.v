@@ -553,7 +553,7 @@ Qed.
          DOG IKKE NØDVENDIGT DA VI HAR MATCHED MED Optimizer_NNF f*)
       end
   end. *)
-Fixpoint Optimizer_NNF (p : form) (b: bool) : form :=
+Fixpoint OptimizerNNF_run (p : form) (b: bool) : form :=
   match p, b with
   (* SAME *)
   | Fvar x, true => Fvar x
@@ -565,22 +565,25 @@ Fixpoint Optimizer_NNF (p : form) (b: bool) : form :=
   | Ffalse, true => Ffalse
   | Ffalse, false => Ftrue
   (* SENDES VIDERE *)
-  | Fand f1 f2, true => Fand (Optimizer_NNF f1 true) (Optimizer_NNF f2 true)
-  | Fand f1 f2, false => For (Optimizer_NNF f1 false) (Optimizer_NNF f2 false)
+  | Fand f1 f2, true => Fand (OptimizerNNF_run f1 true) (OptimizerNNF_run f2 true)
+  | Fand f1 f2, false => For (OptimizerNNF_run f1 false) (OptimizerNNF_run f2 false)
 
-  | For f1 f2, true => For (Optimizer_NNF f1 true) (Optimizer_NNF f2 true)
-  | For f1 f2, false => Fand (Optimizer_NNF f1 false) (Optimizer_NNF f2 false)
+  | For f1 f2, true => For (OptimizerNNF_run f1 true) (OptimizerNNF_run f2 true)
+  | For f1 f2, false => Fand (OptimizerNNF_run f1 false) (OptimizerNNF_run f2 false)
 
-  | Fimplies f1 f2, true => For (Optimizer_NNF f1 false) (Optimizer_NNF f2 true)
-  | Fimplies f1 f2, false => Fand (Optimizer_NNF f1 true) (Optimizer_NNF f2 false)
+  | Fimplies f1 f2, true => For (OptimizerNNF_run f1 false) (OptimizerNNF_run f2 true)
+  | Fimplies f1 f2, false => Fand (OptimizerNNF_run f1 true) (OptimizerNNF_run f2 false)
   (* GAMLE DEF:
   | Fimplies f1 f2, true => Fimplies (Optimizer_NNF f1 true) (Optimizer_NNF f2 true)
   | Fimplies f1 f2, false => For (Optimizer_NNF f1 false) (Optimizer_NNF f2 true)
   *)
   (* DIREKTE OPTIMIZED *)
-  | Fnot f, false => Optimizer_NNF f true
-  | Fnot f, true => Optimizer_NNF f false
+  | Fnot f, false => OptimizerNNF_run f true
+  | Fnot f, true => OptimizerNNF_run f false
   end.
+
+Definition OptimizerNNF (p:form) : form :=
+  OptimizerNNF_run (Optimizer p) true.
 
 Fixpoint implication_is_present (p : form) : bool :=
   match p with
@@ -651,17 +654,23 @@ Fixpoint negated_disjunction_is_present (p : form) : bool :=
   end.
 
 Definition OptimizerNNF_doesn't_contain_illegal_expression_on_form (p : form) : Prop :=
-  implication_is_present (Optimizer_NNF p true) = false 
-  /\ double_negation_is_present (Optimizer_NNF p true) = false
-  /\ negated_conjunction_is_present (Optimizer_NNF p true) = false
-  /\ negated_disjunction_is_present (Optimizer_NNF p true) = false.
+  implication_is_present (OptimizerNNF p) = false 
+  /\ double_negation_is_present (OptimizerNNF p) = false
+  /\ negated_conjunction_is_present (OptimizerNNF p) = false
+  /\ negated_disjunction_is_present (OptimizerNNF p) = false.
 
 Theorem OptimizerNNF_doesn't_contain_illegal_expressions : forall p,
     OptimizerNNF_doesn't_contain_illegal_expression_on_form p.
 Proof.
-  unfold OptimizerNNF_doesn't_contain_illegal_expression_on_form.
-  split.
-  - induction (p) ; try reflexivity ;
+  unfold OptimizerNNF_doesn't_contain_illegal_expression_on_form ; repeat split.
+  - induction p; try reflexivity.
+    + unfold implication_is_present. unfold OptimizerNNF.
+      unfold OptimizerNNF in IHp1. unfold OptimizerNNF in IHp2.
+      unfold Optimizer. induction (Optimizer p1), (Optimizer p2). simpl.
+      * 
+      induction p1,p2.
+    rewrite IHp1. simpl in IHp1.  
+  ().unfold i mplication_is_present.  induction (p) ; try reflexivity ;
     try (simpl; apply orb_false_intro; assumption).
     + simpl. apply orb_false_intro; try assumption.
       unfold implication_is_present.
