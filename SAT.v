@@ -1117,6 +1117,47 @@ Fixpoint illegal_boolean_formulas_are_presentCNF (p : form) : bool :=
       end
   end.
 
+Lemma pls11: forall p,
+  illegal_boolean_formulas_are_presentCNF (OptimizerNNF_run p false)
+  = illegal_boolean_formulas_are_presentCNF (OptimizerNNF_run p true).
+Proof.
+  intros p. induction p; try reflexivity.
+  - simpl.  
+ simpl;
+  try (rewrite <- IHp1; rewrite <- IHp2; reflexivity).
+  rewrite IHp. reflexivity.
+
+Lemma pls10 : forall p1 p2: form,
+  illegal_boolean_formulas_are_presentCNF (OptimizerNNF p1) = false
+  -> illegal_boolean_formulas_are_presentCNF (OptimizerNNF p2) = false
+  -> illegal_boolean_formulas_are_presentCNF (OptimizerNNF (p1 F/\ p2))= false.
+Proof.
+  intros.
+  (* unfold illegal_boolean_formulas_are_presentCNF. ; repeat split. *)
+  (* destruct p eqn: Ep; try reflexivity. *)
+  unfold OptimizerNNF.
+      set (P:= Optimizer (p1 F/\ p2)).
+      induction P; 
+      try reflexivity ;
+      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
+      * simpl. rewrite IHP2. rewrite IHP1. rewrite orb_false_r.
+        destruct (OptimizerNNF_run P1 true), (OptimizerNNF_run P2 true); reflexivity.
+         (* rewrite pls3. rewrite IHP1. *)
+        (* reflexivity. *)
+      * simpl. rewrite IHP2. rewrite orb_false_r. Search illegal_boolean_formulas_are_presentCNFrewrite pls3. assumption.
+Admitted.
+
+(* unfold OptimizerNNF_doesn't_contain_illegal_expression_on_form ; repeat split.
+  - destruct p eqn: Ep; try reflexivity.
+    + unfold OptimizerNNF.
+      set (P:= Optimizer (f1 F/\ f2)).
+      induction P; 
+      try reflexivity ;
+      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
+      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite pls3. rewrite IHP1.
+        reflexivity.
+      * simpl. rewrite pls3. assumption. *)
+
 Definition OptimizedCNF_form_doesn't_contain_illegal_expression (p : form) : Prop :=
   illegal_boolean_formulas_are_presentCNF (OptimizerCNF p) = false.
 
@@ -1126,10 +1167,13 @@ Proof.
   unfold OptimizedCNF_form_doesn't_contain_illegal_expression.
   unfold OptimizerCNF.
   intros p.
-  set (P:= OptimizerNNF p).
+  (* set (P:= OptimizerNNF p). *)
   set (n:= Count_Fand (OptimizerNNF p)).
-  induction (p);
-  try reflexivity.
+  induction n.
+  - simpl. 
+    induction (p);
+    try reflexivity.
+    + simpl. 
   - unfold OptimizerCNF.
     set (n:= Count_Fand (OptimizerNNF (f1 F/\ f2))).
     (* set (m:= Count_Fand_For (OptimizerNNF (f1 F/\ f2))). *)
