@@ -534,60 +534,6 @@ Fixpoint implication_is_present (p : form) : bool :=
   | Fimplies f1 f2 => true
   end.
 
-Fixpoint double_negation_is_present (p : form) : bool :=
-  match p with
-  (* SAME *)
-  | Fvar x => false
-  | Ftrue => false
-  | Ffalse => false
-  (* SENDES VIDERE *)
-  | Fand f1 f2 => orb (double_negation_is_present f1) (double_negation_is_present f2)
-  | For f1 f2 => orb (double_negation_is_present f1) (double_negation_is_present f2)
-  | Fimplies f1 f2 => orb (double_negation_is_present f1) (double_negation_is_present f2)
-  (* DIREKTE OPTIMIZED *)
-  | Fnot f => 
-      match f with
-      | Fnot f' => true
-      | _ => double_negation_is_present f
-      end
-  end.
-
-Fixpoint negated_conjunction_is_present (p : form) : bool :=
-  match p with
-  (* SAME *)
-  | Fvar x => false
-  | Ftrue => false
-  | Ffalse => false
-  (* SENDES VIDERE *)
-  | Fand f1 f2 => orb (negated_conjunction_is_present f1) (negated_conjunction_is_present f2)
-  | For f1 f2 => orb (negated_conjunction_is_present f1) (negated_conjunction_is_present f2)
-  | Fimplies f1 f2 => orb (negated_conjunction_is_present f1) (negated_conjunction_is_present f2)
-  (* DIREKTE OPTIMIZED *)
-  | Fnot f => 
-      match f with
-      | Fand f1 f2 => true
-      | _ => negated_conjunction_is_present f
-      end
-  end.
-
-Fixpoint negated_disjunction_is_present (p : form) : bool :=
-  match p with
-  (* SAME *)
-  | Fvar x => false
-  | Ftrue => false
-  | Ffalse => false
-  (* SENDES VIDERE *)
-  | Fand f1 f2 => orb (negated_disjunction_is_present f1) (negated_disjunction_is_present f2)
-  | For f1 f2 => orb (negated_disjunction_is_present f1) (negated_disjunction_is_present f2)
-  | Fimplies f1 f2 => orb (negated_disjunction_is_present f1) (negated_disjunction_is_present f2)
-  (* DIREKTE OPTIMIZED *)
-  | Fnot f => 
-      match f with
-      | For f1 f2 => true
-      | _ => negated_disjunction_is_present f
-      end
-  end.
-
 Fixpoint neg_applied_to_non_literals (p: form) : bool :=
   match p with
   (* SAME *)
@@ -643,60 +589,6 @@ Proof.
   try (simpl; rewrite IHp1; rewrite IHp2; reflexivity).
   - simpl. rewrite optimizerNNF_run_implication_eq. rewrite IHp1. rewrite IHp2. reflexivity.
   - simpl. rewrite optimizerNNF_run_implication_eq. assumption.
-Qed.
-
-(* Lemma optimizerNNF_run_doubleneg_eq : forall (p:form),
-    double_negation_is_present (optimizerNNF_run p false) = double_negation_is_present (optimizerNNF_run p true).
-Proof.
-  intros p. induction p; try reflexivity ; simpl;
-  try (rewrite <- IHp1; rewrite <- IHp2; reflexivity).
-  rewrite IHp. reflexivity.
-Qed. *)
-
-(* Lemma optimizerNNF_run_no_impl : forall p,
-  double_negation_is_present (optimizerNNF_run p true) = false.
-Proof.
-  induction p; 
-  try reflexivity;
-  try (simpl; rewrite IHp1; rewrite IHp2; reflexivity).
-  - simpl. rewrite optimizerNNF_run_implication_eq. rewrite IHp1. rewrite IHp2. reflexivity.
-  - simpl. rewrite optimizerNNF_run_implication_eq. assumption.
-Qed. *)
-
-Lemma optimizerNNF_run_negconj_eq : forall (p:form),
-    negated_conjunction_is_present (optimizerNNF_run p false) = negated_conjunction_is_present (optimizerNNF_run p true).
-Proof.
-  intros p. induction p; try reflexivity ; simpl;
-  try (rewrite <- IHp1; rewrite <- IHp2; reflexivity).
-  rewrite IHp. reflexivity.
-Qed.
-
-Lemma optimizerNNF_run_no_negconj : forall p,
-  negated_conjunction_is_present (optimizerNNF_run p true) = false.
-Proof.
-  induction p; 
-  try reflexivity;
-  try (simpl; rewrite IHp1; rewrite IHp2; reflexivity).
-  - simpl. rewrite optimizerNNF_run_negconj_eq. rewrite IHp1. rewrite IHp2. reflexivity.
-  - simpl. rewrite optimizerNNF_run_negconj_eq. assumption.
-Qed.
-
-Lemma optimizerNNF_run_negdisj_eq : forall (p:form),
-    negated_disjunction_is_present (optimizerNNF_run p false) = negated_disjunction_is_present (optimizerNNF_run p true).
-Proof.
-  intros p. induction p; try reflexivity ; simpl;
-  try (rewrite <- IHp1; rewrite <- IHp2; reflexivity).
-  rewrite IHp. reflexivity.
-Qed.
-
-Lemma optimizerNNF_run_no_negdisj : forall p,
-  negated_disjunction_is_present (optimizerNNF_run p true) = false.
-Proof.
-  induction p; 
-  try reflexivity;
-  try (simpl; rewrite IHp1; rewrite IHp2; reflexivity).
-  - simpl. rewrite optimizerNNF_run_negdisj_eq. rewrite IHp1. rewrite IHp2. reflexivity.
-  - simpl. rewrite optimizerNNF_run_negdisj_eq. assumption.
 Qed.
 
 Lemma optimizer_preserves_no_neg_applied_to_non_litterals : forall p,
@@ -1027,6 +919,449 @@ Inductive form :  Type:=
   | Fimplies : form -> form -> form
   | Fnot : form -> form.
 *)
+
+Fixpoint optimizerCNF_step (p : form) : form :=
+  match p with 
+    (* SAME *)
+    | Fvar x => Fvar x
+    | Ftrue => Ftrue
+    | Ffalse => Ffalse
+    | Fnot f => Fnot (optimizerCNF_step f)
+    | Fand f1 f2 => Fand (optimizerCNF_step f1) (optimizerCNF_step f2)
+    (* SENDES VIDERE *)
+    | For f1 f2 =>
+        match f1, f2 with
+        | Fand x y, z => Fand (For z x) (For z y)
+        | x, Fand y z => Fand (For x y) (For x z)
+        | f1', f2' => For (optimizerCNF_step f1') (optimizerCNF_step f2')
+      end
+    (* IKKE MULIG *)
+    | Fimplies f1 f2 => Fimplies (optimizerCNF_step f1) (optimizerCNF_step f2)
+  end.
+
+Fixpoint count_steps (p: form) (n: nat) : nat :=
+  match p with 
+    (* SAME *)
+    | Fvar x => 0
+    | Ftrue => 0
+    | Ffalse => 0
+    | Fnot f => count_steps f n
+    | Fand f1 f2 => n + (count_steps f1 n) + (count_steps f2 n)
+    (* SENDES VIDERE *)
+    | For f1 f2 => (count_steps f1 (n + 1)) + (count_steps f2 (n + 1))
+    | Fimplies f1 f2 => (count_steps f1 n) + (count_steps f2 n)
+  end.
+
+Compute (count_steps (X F\/ (Z F/\ Y)) 0).
+Compute (count_steps (X F\/ (Z F/\ ((X) F\/ (Z F/\ Y)))) 0).
+
+Lemma optimizerCNF_step_dec_with_nat : forall p n,
+  le (count_steps p n) (count_steps p (n+1)).
+Proof.
+  intros p.
+  induction p; 
+  try reflexivity;
+  intros n; simpl;
+  try (apply Nat.add_le_mono);
+  try auto.
+  - apply Nat.add_le_mono; auto.
+    rewrite Nat.add_1_r. auto.
+Qed.
+
+Fixpoint count_Fand (p : form) : nat :=
+  match p with
+  | Fand f1 f2 => 1 + ((count_Fand f1) + (count_Fand f2))
+  | For f1 f2 => ((count_Fand f1) + (count_Fand f2))
+  | Fimplies f1 f2 => ((count_Fand f1) + (count_Fand f2))
+  | Fnot f => (count_Fand f)
+  (* SLUT *)
+  | _ => 0
+  end.
+
+Lemma count_fand_0_count_step_0: forall p n,
+  count_Fand p = 0 ->
+  count_steps p n = 0.
+Proof.
+  induction p;
+  intros n H;
+  try reflexivity.
+  - discriminate.
+  - simpl. simpl in H.
+    destruct (count_Fand p1) eqn: E1, (count_Fand p2 ) eqn:E2; try discriminate.
+    specialize (IHp1 (n+1)). specialize (IHp2 (n+1)).
+    rewrite IHp1; try rewrite IHp2; try reflexivity.
+  - simpl. simpl in H.
+    destruct (count_Fand p1) eqn: E1, (count_Fand p2 ) eqn:E2; try discriminate.
+    specialize (IHp1 (n)). specialize (IHp2 (n)).
+    rewrite IHp1; try rewrite IHp2; try reflexivity.
+  - simpl. simpl in H.
+    destruct (count_Fand p) eqn: E1; try discriminate.
+    specialize (IHp (n)).
+    rewrite IHp; reflexivity.
+Qed.
+
+Lemma count_step_or_0_count_fand_0 : forall p1 p2,
+  count_steps (p1 F\/ p2) 0 = 0 ->
+  count_Fand (p1 F\/ p2) = 0.
+Proof.
+  intros p1 p2.
+  simpl.
+  (* set (P:= (p1 F\/ p2)). *)
+  induction p1; induction p2; 
+  try reflexivity;
+  try discriminate;
+  intros H;
+  (* simpl;  *)
+  simpl in H;
+  try (simpl; simpl in IHp2; apply IHp2; assumption);
+  (* try (simpl in IHp2_1; simpl in IHp2_2); *)
+  try (
+    simpl;
+    simpl in IHp2_1; simpl in IHp2_2; simpl in H;
+    destruct (count_steps p2_1 1) eqn:Ep1, (count_steps p2_2 1) eqn:Ep2; try discriminate;
+    simpl in H;
+    apply IHp2_1 in H as Ha; rewrite Ha;
+    apply IHp2_2 in H as Hb; rewrite Hb;
+    reflexivity
+      );
+  try(
+    simpl;
+    simpl in IHp2_1; simpl in IHp2_2; simpl in H;
+    destruct (count_steps p2_1 2) eqn:Ep1, (count_steps p2_2 2) eqn:Ep2; 
+    try discriminate;
+    assert (L1: le (count_steps p2_1 1) (count_steps p2_1 2)); try apply optimizerCNF_step_dec_with_nat;
+    assert (L2: le (count_steps p2_2 1) (count_steps p2_2 2)); try apply optimizerCNF_step_dec_with_nat;
+    rewrite Ep1 in L1; rewrite Ep2 in L2;
+    apply Arith_base.le_n_0_eq_stt in L1; symmetry in L1;
+    apply Arith_base.le_n_0_eq_stt in L2; symmetry in L2;
+    apply IHp2_1 in L1; rewrite L1;
+    apply IHp2_2 in L2; rewrite L2;
+    reflexivity
+  );
+  try (simpl; simpl in IHp1; apply IHp1; assumption);
+  try (
+    try rewrite Nat.add_0_r; 
+    try rewrite Nat.add_0_r in H;
+    repeat rewrite Nat.add_0_r in IHp1_1;
+    repeat rewrite Nat.add_0_r in IHp1_2;
+    simpl;
+    simpl in IHp1_1; simpl in IHp1_2; simpl in H;
+    try rewrite Nat.add_0_r;
+    try (rewrite Nat.add_0_r in H);
+    destruct (count_steps p1_1 1) eqn:Ep1, (count_steps p1_2 1) eqn:Ep2; try discriminate;
+    simpl in H;
+    apply IHp1_1 in H as Ha; rewrite Ha;
+    apply IHp1_2 in H as Hb; rewrite Hb;
+    reflexivity
+      );
+  try(
+    try rewrite Nat.add_0_r; 
+    try rewrite Nat.add_0_r in H;
+    repeat rewrite Nat.add_0_r in IHp1_1;
+    repeat rewrite Nat.add_0_r in IHp1_2;
+    simpl;
+    simpl in IHp1_1; simpl in IHp1_2; simpl in H;
+    destruct (count_steps p1_1 2) eqn:Ep1, (count_steps p1_2 2) eqn:Ep2; 
+    try discriminate;
+    assert (L1: le (count_steps p1_1 1) (count_steps p1_1 2)); try apply optimizerCNF_step_dec_with_nat;
+    assert (L2: le (count_steps p1_2 1) (count_steps p1_2 2)); try apply optimizerCNF_step_dec_with_nat;
+    rewrite Ep1 in L1; rewrite Ep2 in L2;
+    apply Arith_base.le_n_0_eq_stt in L1; symmetry in L1;
+    apply Arith_base.le_n_0_eq_stt in L2; symmetry in L2;
+    apply IHp1_1 in L1; rewrite L1;
+    apply IHp1_2 in L2; rewrite L2;
+    reflexivity
+  ).
+
+  - simpl.
+    simpl in H. 
+    simpl in IHp1_1. simpl in IHp1_2.
+    clear IHp2_1. clear IHp2_2.
+    (* simpl in IHp2_1. simpl in IHp2_2. *)
+    destruct  (count_steps p1_1 2) eqn:Ep1, 
+              (count_steps p1_2 2) eqn:Ep2,
+              (count_steps p2_1 2) eqn:Ep1', 
+              (count_steps p2_2 2) eqn:Ep2'; try discriminate.
+    clear H. 
+    simpl in IHp1_1. simpl in IHp1_2.
+    rewrite Nat.add_0_r in IHp1_1. 
+    rewrite Nat.add_0_r in IHp1_2.
+    assert (L1: le (count_steps p1_1 1) (count_steps p1_1 2)); try apply optimizerCNF_step_dec_with_nat.
+    assert (L2: le (count_steps p1_2 1) (count_steps p1_2 2)); try apply optimizerCNF_step_dec_with_nat.
+    rewrite Ep1 in L1. rewrite Ep2 in L2.
+    apply Arith_base.le_n_0_eq_stt in L1. symmetry in L1.
+    apply Arith_base.le_n_0_eq_stt in L2. symmetry in L2.
+    apply IHp1_1 in L1. 
+    apply IHp1_2 in L2. 
+    destruct  (count_Fand p1_1) eqn:EEp1, 
+              (count_Fand p1_2) eqn:EEp2,
+              (count_Fand p2_1) eqn:EEp1', 
+              (count_Fand p2_2) eqn:EEp2'; try discriminate.
+    reflexivity.
+
+  - simpl in H. 
+    simpl in IHp1_1. simpl in IHp1_2.
+    clear IHp2_1. clear IHp2_2. simpl.
+    destruct  (count_steps p1_1 2) eqn:Ep1, 
+              (count_steps p1_2 2) eqn:Ep2,
+              (count_steps p2_1 1) eqn:Ep1', 
+              (count_steps p2_2 1) eqn:Ep2'; try discriminate.
+    clear H. 
+    simpl in IHp1_1. simpl in IHp1_2.
+    rewrite Nat.add_0_r in IHp1_1. 
+    rewrite Nat.add_0_r in IHp1_2.
+    assert (L1: le (count_steps p1_1 1) (count_steps p1_1 2)); try apply optimizerCNF_step_dec_with_nat.
+    assert (L2: le (count_steps p1_2 1) (count_steps p1_2 2)); try apply optimizerCNF_step_dec_with_nat.
+    rewrite Ep1 in L1. rewrite Ep2 in L2.
+    apply Arith_base.le_n_0_eq_stt in L1. symmetry in L1.
+    apply Arith_base.le_n_0_eq_stt in L2. symmetry in L2.
+    apply IHp1_1 in L1. 
+    apply IHp1_2 in L2. 
+    destruct  (count_Fand p1_1) eqn:EEp1, 
+              (count_Fand p1_2) eqn:EEp2,
+              (count_Fand p2_1) eqn:EEp1', 
+              (count_Fand p2_2) eqn:EEp2'; try discriminate.
+    reflexivity.
+
+  - simpl in H. 
+    simpl in IHp1_1. simpl in IHp1_2.
+    clear IHp2_1. clear IHp2_2. simpl.
+    destruct  (count_steps p1_1 1) eqn:Ep1, 
+              (count_steps p1_2 1) eqn:Ep2,
+              (count_steps p2_1 2) eqn:Ep1', 
+              (count_steps p2_2 2) eqn:Ep2'; try discriminate.
+    (* clear H.  *)
+    simpl in IHp1_1. simpl in IHp1_2.
+    simpl in H.
+    apply IHp1_1 in H as Ha. apply IHp1_2 in H as Hb.
+    (* rewrite Nat.add_0_r in IHp1_1.  *)
+    (* rewrite Nat.add_0_r in IHp1_2. *)
+    destruct  (count_Fand p1_1) eqn:EEp1, 
+              (count_Fand p1_2) eqn:EEp2,
+              (count_Fand p2_1) eqn:EEp1', 
+              (count_Fand p2_2) eqn:EEp2'; try discriminate.
+    reflexivity.
+  
+  - simpl in H. 
+    simpl in IHp1_1. simpl in IHp1_2.
+    clear IHp2_1. clear IHp2_2. simpl.
+    destruct  (count_steps p1_1 1) eqn:Ep1, 
+              (count_steps p1_2 1) eqn:Ep2,
+              (count_steps p2_1 1) eqn:Ep1', 
+              (count_steps p2_2 1) eqn:Ep2'; try discriminate.
+    (* clear H.  *)
+    simpl in IHp1_1. simpl in IHp1_2.
+    simpl in H.
+    apply IHp1_1 in H as Ha. apply IHp1_2 in H as Hb.
+    (* rewrite Nat.add_0_r in IHp1_1.  *)
+    (* rewrite Nat.add_0_r in IHp1_2. *)
+    destruct  (count_Fand p1_1) eqn:EEp1, 
+              (count_Fand p1_2) eqn:EEp2,
+              (count_Fand p2_1) eqn:EEp1', 
+              (count_Fand p2_2) eqn:EEp2'; try discriminate.
+    reflexivity.
+Qed.
+
+Lemma optimizerCNF_or_eq0_always_eq0 : forall p1 p2 n,
+  count_steps (p1 F\/ p2) 0 = 0 ->
+  count_steps (p1 F\/ p2) n = 0.
+Proof.
+  intros p1 p2 n H.
+  apply count_step_or_0_count_fand_0 in H.
+  apply count_fand_0_count_step_0.
+  assumption.
+Qed.
+
+Lemma count_Fand_0_optimizerCNF_remove: forall p,
+  count_Fand p = 0 -> 
+  optimizerCNF_step (p) = p.
+Proof.
+  induction p;
+  intros H;
+  try reflexivity.
+  - discriminate.
+  - simpl in H.
+    destruct (count_Fand p1) eqn:Ep1, (count_Fand p2) eqn:Ep2; try discriminate. 
+    simpl in H.
+    simpl.
+    apply IHp1 in H as Ha. rewrite Ha.
+    apply IHp2 in H as Hb. rewrite Hb.
+    destruct p1, p2; try discriminate; try reflexivity.
+  - simpl in H.
+    destruct (count_Fand p1) eqn:Ep1, (count_Fand p2) eqn:Ep2; try discriminate. 
+    simpl in H.
+    simpl.
+    apply IHp1 in H as Ha. rewrite Ha.
+    apply IHp2 in H as Hb. rewrite Hb.
+    reflexivity.
+  - simpl in H. apply IHp in H. simpl. rewrite H. reflexivity. 
+Qed.
+
+Lemma optimizerCNF_step_never_increases_step_count_from_0 : forall p,
+  count_steps (p) 0 = 0 ->
+  count_steps (optimizerCNF_step p) 0 = 0.
+Proof.
+  intros p.
+  (* set (P:= optimizerNNF p). *)
+  induction p;
+  try reflexivity.
+  - simpl. intros H. 
+    destruct (count_steps p1 0), (count_steps p2 0); try discriminate.
+    simpl in H. apply IHp1 in H as Ha. apply IHp2 in H as Hb.
+    rewrite Ha. rewrite Hb. reflexivity.
+
+  - intros H.
+    apply count_step_or_0_count_fand_0 in H as H'.
+    apply count_Fand_0_optimizerCNF_remove in H'.
+    rewrite H'. apply H.
+  
+  - simpl. intros H. 
+    destruct (count_steps p1 0), (count_steps p2 0); try discriminate.
+    simpl in H. apply IHp1 in H as Ha. apply IHp2 in H as Hb.
+    rewrite Ha. rewrite Hb. reflexivity.
+  
+  - simpl. intros H. apply IHp. assumption.
+Qed.
+
+(* 
+Lemma optimizerCNF_step_never_increases_step_count_from_0 : forall p,
+  count_steps (p) 0 = 0 ->
+  count_steps (optimizerCNF_step (optimizerNNF p)) 0 = 0.
+Proof.
+  intros p.
+  set (P:= optimizerNNF p).
+  induction P;
+  try reflexivity.
+  - simpl. intros H. 
+    destruct (count_steps P1 0), (count_steps P2 0); try discriminate.
+    simpl in H. apply IHP1 in H as Ha. apply IHP2 in H as Hb.
+    rewrite Ha. rewrite Hb. reflexivity.
+
+  - intros H. simpl in H.
+    (* apply Arith_base.le_n_0_eq_stt in H. *)
+    assert (L1: count_steps P1 0 <= count_steps P1 1).
+    {
+      apply optimizerCNF_step_dec_with_nat.
+    }
+    assert (L2: count_steps P2 0 <= count_steps P2 1).
+    {
+      apply optimizerCNF_step_dec_with_nat.
+    }
+    destruct (count_steps P1 1) eqn:Ep1, (count_steps P2 1)eqn:Ep2; try discriminate.
+    apply Arith_base.le_n_0_eq_stt in L1. apply Arith_base.le_n_0_eq_stt in L2.
+    symmetry in L1. symmetry in L2.
+    apply IHP1 in L1. apply IHP2 in L2.
+    simpl. 
+    destruct P1 eqn:Ep1'.
+    + destruct P2 eqn:Ep2'; try reflexivity.
+      * simpl. simpl in L2.
+    unfold count_steps.
+    destruct (optimizerCNF_step (P1 F\/ P2)) eqn:E; try reflexivity.
+    + inversion E.
+      destruct f1, f2; try reflexivity; try discriminate. 
+    simpl.
+
+
+    destruct P1 , P2; try reflexivity; try discriminate.
+    + destruct (optimizerCNF_step (P2_1 F\/ P2_2)) eqn:E; try reflexivity.
+      * simpl.
+     simpl. 
+    
+    try auto.
+    simpl.
+    Search le.
+    assert (L1: count_steps P1 0 <= count_steps P1 1).
+    {
+      apply optimizerCNF_step_dec_with_nat.
+    } rewrite
+      Search le. Print Arith_base.le_n_0_eq_stt.
+    }
+    destruct P1, P2; try reflexivity; try discriminate.
+    +   
+    destruct (count_steps P1 0), (count_steps P2 0); try discriminate.
+    simpl in H. apply IHP1 in H as Ha. apply IHP2 in H as Hb.
+    rewrite Ha. rewrite Hb. reflexivity.
+Admitted.
+*)
+
+Lemma optimizerCNF_step_reduce_count_step: forall p,
+  count_steps (optimizerNNF p) 0 = 0 
+  \/ le (count_steps (optimizerCNF_step (optimizerNNF p)) 0) (count_steps (optimizerNNF p) 0).
+Proof.
+  intros p.
+  induction (optimizerNNF p);
+  try (left; reflexivity).
+  - destruct IHf1 as [IH1a | IH1b].
+    + simpl. rewrite IH1a. simpl. destruct IHf2 as [IH2a | IH2b].
+      * left. simpl. assumption.
+      * apply optimizerCNF_step_never_increases_step_count_from_0 in IH1a as IH1a'.
+        rewrite IH1a'. right. simpl. assumption.
+    + simpl. destruct IHf2 as [IH2a | IH2b].
+      * apply optimizerCNF_step_never_increases_step_count_from_0 in IH2a as IH2a'.
+        rewrite IH2a'. rewrite IH2a. right.
+        repeat rewrite Nat.add_0_r. assumption.
+      * right. 
+        assert (L1: le 
+                    (count_steps (optimizerCNF_step f1) 0 +
+                    count_steps (optimizerCNF_step f2) 0)
+                    (count_steps f1 0 +
+                    count_steps (optimizerCNF_step f2) 0)).
+        {
+          apply add_le_mono_r_proj_l2r. assumption.
+        }
+        assert (L2: le 
+                    (count_steps f1 0 +
+                    count_steps (optimizerCNF_step f2) 0)
+                    (count_steps f1 0 +
+                    count_steps f2 0)).
+        {
+          apply add_le_mono_l_proj_l2r. assumption.
+        }
+        apply Nat.le_trans with (m:= (count_steps f1 0 + count_steps (optimizerCNF_step f2) 0));
+        assumption.
+  
+  - right. destruct IHf1 as [IH1a | IH1b].
+    + simpl. destruct IHf2 as [IH2a | IH2b].
+      * admit.
+      *  
+      
+      left. simpl. assumption.
+      * apply optimizerCNF_step_never_increases_step_count_from_0 in IH1a as IH1a'.
+        rewrite IH1a'. right. simpl. assumption.
+    + simpl. destruct IHf2 as [IH2a | IH2b].
+      * apply optimizerCNF_step_never_increases_step_count_from_0 in IH2a as IH2a'.
+        rewrite IH2a'. rewrite IH2a. right.
+        repeat rewrite Nat.add_0_r. assumption.
+      * right. 
+        assert (L1: le 
+                    (count_steps (optimizerCNF_step f1) 0 +
+                    count_steps (optimizerCNF_step f2) 0)
+                    (count_steps f1 0 +
+                    count_steps (optimizerCNF_step f2) 0)).
+        {
+          apply add_le_mono_r_proj_l2r. assumption.
+        }
+        assert (L2: le 
+                    (count_steps f1 0 +
+                    count_steps (optimizerCNF_step f2) 0)
+                    (count_steps f1 0 +
+                    count_steps f2 0)).
+        {
+          apply add_le_mono_l_proj_l2r. assumption.
+        }
+        apply Nat.le_trans with (m:= (count_steps f1 0 + count_steps (optimizerCNF_step f2) 0));
+        assumption.
+
+      
+Admitted.
+      Search add.
+        simpl. 
+
+      apply  rewrite IH1a. simpl. 
+      rewrite IH1a. rewrite IH2a. reflexivity.
+      * inversion IH2b.
+        **    
+
 
 Fixpoint Count_Fand (p : form) : nat :=
   match p with
