@@ -483,51 +483,7 @@ Qed.
 
 (* EXTRA -- Negation Normal Form *)
 
-(* 
-  match p with
-  | Fvar x => V x
-  | Ftrue => true
-  | Ffalse => false
-  | Fand f1 f2 => andb (interp V f1) (interp V f2)
-  | For f1 f2 => orb (interp V f1) (interp V f2)
-  | Fimplies f1 f2 =>
-      match interp V f1 with
-      | true => interp V f2
-      | false => true
-      end
-  | Fnot f => negb (interp V f)
-  end.
-
-
-   match p with
-  (* SAME *)
-  | Fvar x => Fvar x
-  | Ftrue => Ftrue
-  | Ffalse => Ffalse
-  (* SENDES VIDERE *)
-  | Fnot f => Fnot (Optimizer f)
-  | Fimplies f1 f2 => Fimplies (Optimizer f1) (Optimizer f2)
-  (* DIREKTE OPTIMIZED *)
-  | Fand f1 f2 =>
-      match Optimizer f1, Optimizer f2 with
-      | Ftrue, (Fvar x) => Fvar x
-      | (Fvar x), Ftrue => Fvar x
-      | _, Ffalse => Ffalse
-      | Ffalse, _ => Ffalse
-      | _, _ => Fand (Optimizer f1) (Optimizer f2)
-      end
-  | For f1 f2 => 
-  (* For (Optimizer f1) (Optimizer f2) *)
-      match Optimizer f1, Optimizer f2 with
-      | Ftrue, _ => Ftrue
-      | _, Ftrue => Ftrue
-      | (Fvar x), Ffalse => Fvar x
-      | Ffalse, (Fvar x) => Fvar x
-      | _, _ => For (Optimizer f1) (Optimizer f2)
-      end
-  end.
-*)
-(* Fixpoint Optimizer_NNF (p : form) (b: bool) : form :=
+Fixpoint optimizerNNF_run (p : form) (b: bool) : form :=
   match p, b with
   (* SAME *)
   | Fvar x, true => Fvar x
@@ -539,131 +495,30 @@ Qed.
   | Ffalse, true => Ffalse
   | Ffalse, false => Ftrue
   (* SENDES VIDERE *)
-  | Fand f1 f2, _ => Fand (Optimizer_NNF f1 _) (Optimizer_NNF f2 _)
-  | For f1 f2, _ => For (Optimizer_NNF f1 _) (Optimizer_NNF f2 _)
-  | Fimplies f1 f2, _ => Fimplies (Optimizer_NNF f1 _) (Optimizer_NNF f2 _)
+  | Fand f1 f2, true => Fand (optimizerNNF_run f1 true) (optimizerNNF_run f2 true)
+  | Fand f1 f2, false => For (optimizerNNF_run f1 false) (optimizerNNF_run f2 false)
+
+  | For f1 f2, true => For (optimizerNNF_run f1 true) (optimizerNNF_run f2 true)
+  | For f1 f2, false => Fand (optimizerNNF_run f1 false) (optimizerNNF_run f2 false)
+
+  | Fimplies f1 f2, true => For (optimizerNNF_run f1 false) (optimizerNNF_run f2 true)
+  | Fimplies f1 f2, false => Fand (optimizerNNF_run f1 true) (optimizerNNF_run f2 false)
   (* DIREKTE OPTIMIZED *)
-  | Fnot f, false => Optimizer_NNF f true
-  | Fnot f, true => 
-      match (Optimizer_NNF f true) with
-      | Fvar x => Fnot (Fvar x)
-      | Ftrue => Ffalse
-      | Ffalse => Ftrue
-      | Fand f1 f2 => For ((Fnot f1)) ((Fnot f2))
-      | For f1 f2 => Fand ((Fnot f1)) ((Fnot f2))
-      (* | Fimplies f1 f2 => For ((Fnot f1)) (f2) *)
-      (* | Fand f1 f2 => For (Optimizer_NNF (Fnot f1)) (Optimizer_NNF (Fnot f2)) *)
-      (* | For f1 f2 => Fand (Optimizer_NNF (Fnot f1)) (Optimizer_NNF (Fnot f2)) *)
-      | Fimplies f1 f2 => For (Optimizer_NNF f1 false) (f2)
-      (* ORIGINALT KOM TIL AT SKRIVE:
-        | Fand f1 f2 => For (Optimizer_NNF (Fnot f1)) (Optimizer_NNF (Fnot f2))
-        | For f1 f2 => Fand (Optimizer_NNF (Fnot f1)) (Optimizer_NNF (Fnot f2))
-        | Fimplies f1 f2 => For (Optimizer_NNF (Fnot f1)) (Optimizer_NNF f2)
-      *)
-      | Fnot f' => f'
-      (* ORIGINALT KOM TIL AT SKRIVE: Fnot f' => Optimizer_NNF f' 
-         DOG IKKE NØDVENDIGT DA VI HAR MATCHED MED Optimizer_NNF f*)
-      end
-  end. *)
-
-(* Inductive form2 :  Type:=
-  | F2var : id -> form2 
-  | F2true : form2
-  | F2false : form2
-  | F2and : form2 -> form2 -> form2
-  | F2or : form2 -> form2 -> form2
-  | F2not : form2 -> form2.
-
-Fixpoint OptimizerNNF_run (p : form) (b: bool) : form2 :=
-  match p, b with
-  (* SAME *)
-  | Fvar x, true => F2var x
-  | Fvar x, false => F2not (F2var x)
-
-  | Ftrue, true => F2true
-  | Ftrue, false => F2false
-
-  | Ffalse, true => F2false
-  | Ffalse, false => F2true
-  (* SENDES VIDERE *)
-  | Fand f1 f2, true => F2and (OptimizerNNF_run f1 true) (OptimizerNNF_run f2 true)
-  | Fand f1 f2, false => F2or (OptimizerNNF_run f1 false) (OptimizerNNF_run f2 false)
-
-  | For f1 f2, true => F2or (OptimizerNNF_run f1 true) (OptimizerNNF_run f2 true)
-  | For f1 f2, false => F2and (OptimizerNNF_run f1 false) (OptimizerNNF_run f2 false)
-
-  | Fimplies f1 f2, true => F2or (OptimizerNNF_run f1 false) (OptimizerNNF_run f2 true)
-  | Fimplies f1 f2, false => F2and (OptimizerNNF_run f1 true) (OptimizerNNF_run f2 false)
-  (* GAMLE DEF:
-  | Fimplies f1 f2, true => Fimplies (Optimizer_NNF f1 true) (Optimizer_NNF f2 true)
-  | Fimplies f1 f2, false => For (Optimizer_NNF f1 false) (Optimizer_NNF f2 true)
-  *)
-  (* DIREKTE OPTIMIZED *)
-  | Fnot f, false => OptimizerNNF_run f true
-  | Fnot f, true => OptimizerNNF_run f false
-  end. *)
-
-(* Fixpoint Optimizer2 (p : form2) : form2 :=
-  match p with
-  (* SAME *)
-  | Fvar x => Fvar x
-  | Ftrue => Ftrue
-  | Ffalse => Ffalse
-  (* SENDES VIDERE *)
-  | Fnot f => Fnot (Optimizer f)
-  (* DIREKTE OPTIMIZED *)
-  | Fand f1 f2 =>
-      match Optimizer f1, Optimizer f2 with
-      | Ftrue, (Fvar x) => Fvar x
-      | (Fvar x), Ftrue => Fvar x
-      | _, Ffalse => Ffalse
-      | Ffalse, _ => Ffalse
-      | _, _ => Fand (Optimizer f1) (Optimizer f2)
-      end
-  | For f1 f2 => 
-  (* For (Optimizer f1) (Optimizer f2) *)
-      match Optimizer f1, Optimizer f2 with
-      | Ftrue, _ => Ftrue
-      | _, Ftrue => Ftrue
-      | (Fvar x), Ffalse => Fvar x
-      | Ffalse, (Fvar x) => Fvar x
-      | _, _ => For (Optimizer f1) (Optimizer f2)
-      end
-  end. *)
-
-
-Fixpoint OptimizerNNF_run (p : form) (b: bool) : form :=
-  match p, b with
-  (* SAME *)
-  | Fvar x, true => Fvar x
-  | Fvar x, false => Fnot (Fvar x)
-
-  | Ftrue, true => Ftrue
-  | Ftrue, false => Ffalse
-
-  | Ffalse, true => Ffalse
-  | Ffalse, false => Ftrue
-  (* SENDES VIDERE *)
-  | Fand f1 f2, true => Fand (OptimizerNNF_run f1 true) (OptimizerNNF_run f2 true)
-  | Fand f1 f2, false => For (OptimizerNNF_run f1 false) (OptimizerNNF_run f2 false)
-
-  | For f1 f2, true => For (OptimizerNNF_run f1 true) (OptimizerNNF_run f2 true)
-  | For f1 f2, false => Fand (OptimizerNNF_run f1 false) (OptimizerNNF_run f2 false)
-
-  | Fimplies f1 f2, true => For (OptimizerNNF_run f1 false) (OptimizerNNF_run f2 true)
-  | Fimplies f1 f2, false => Fand (OptimizerNNF_run f1 true) (OptimizerNNF_run f2 false)
-  (* GAMLE DEF:
-  | Fimplies f1 f2, true => Fimplies (Optimizer_NNF f1 true) (Optimizer_NNF f2 true)
-  | Fimplies f1 f2, false => For (Optimizer_NNF f1 false) (Optimizer_NNF f2 true)
-  *)
-  (* DIREKTE OPTIMIZED *)
-  | Fnot f, false => OptimizerNNF_run f true
-  | Fnot f, true => OptimizerNNF_run f false
+  | Fnot f, false => optimizerNNF_run f true
+  | Fnot f, true => optimizerNNF_run f false
   end.
 
-Definition OptimizerNNF (p:form) : form :=
-  Optimizer (OptimizerNNF_run (Optimizer p) true).
-  (* OptimizerNNF_run (Optimizer p) true. *)
+Lemma optimizerNNF_run_booleq_neg : forall p,
+ (optimizerNNF_run (F~ p) true) = optimizerNNF_run p false.
+Proof.
+  induction p; try reflexivity.
+Qed.
+
+Lemma optimizerNNF_run_double_neg : forall p,
+ (optimizerNNF_run (F~ (F~ p)) true) = optimizerNNF_run p true.
+Proof.
+  induction p; try reflexivity.
+Qed.
 
 Fixpoint implication_is_present (p : form) : bool :=
   match p with
@@ -733,616 +588,350 @@ Fixpoint negated_disjunction_is_present (p : form) : bool :=
       end
   end.
 
-Definition OptimizerNNF_doesn't_contain_illegal_expression_on_form (p : form) : Prop :=
-  implication_is_present (OptimizerNNF p) = false 
-  /\ double_negation_is_present (OptimizerNNF p) = false
-  /\ negated_conjunction_is_present (OptimizerNNF p) = false
-  /\ negated_disjunction_is_present (OptimizerNNF p) = false
-  /\ illegal_boolean_formulas_are_present (OptimizerNNF p) = false.
+Fixpoint neg_applied_to_non_literals (p: form) : bool :=
+  match p with
+  (* SAME *)
+  | Fvar x => false
+  | Ftrue => false
+  | Ffalse => false
+  (* SENDES VIDERE *)
+  | Fand f1 f2 => orb (neg_applied_to_non_literals f1) (neg_applied_to_non_literals f2)
+  | For f1 f2 => orb (neg_applied_to_non_literals f1) (neg_applied_to_non_literals f2)
+  | Fimplies f1 f2 => orb (neg_applied_to_non_literals f1) (neg_applied_to_non_literals f2)
+  (* DIREKTE OPTIMIZED *)
+  | Fnot f => 
+      match f with
+      | For _ _ => true
+      | Fand _ _ => true
+      | Fimplies _ _ => true
+      | Fnot _ => true
+      | _ => neg_applied_to_non_literals f
+      end
+  end.
+
+Lemma optimizerNNF_run_neglit_eq : forall (p:form),
+  neg_applied_to_non_literals (optimizerNNF_run p false) = neg_applied_to_non_literals (optimizerNNF_run p true).
+Proof.
+  intros p. induction p; try reflexivity ; simpl;
+  try (rewrite <- IHp1; rewrite <- IHp2; reflexivity).
+  rewrite IHp. reflexivity.
+Qed.  
+
+Lemma optimizerNNF_run_neg_only_applied_to_literals : forall p,
+  neg_applied_to_non_literals (optimizerNNF_run p true) = false.
+Proof.
+  induction p; 
+  try reflexivity;
+  try (simpl; rewrite IHp1; rewrite IHp2; reflexivity).
+  - simpl. rewrite optimizerNNF_run_neglit_eq. rewrite IHp1. rewrite IHp2. reflexivity.
+  - simpl. rewrite optimizerNNF_run_neglit_eq. assumption.
+Qed.
 
 Lemma optimizerNNF_run_implication_eq : forall (p:form),
-    implication_is_present (OptimizerNNF_run p false) = implication_is_present (OptimizerNNF_run p true).
+    implication_is_present (optimizerNNF_run p false) = implication_is_present (optimizerNNF_run p true).
 Proof.
   intros p. induction p; try reflexivity ; simpl;
   try (rewrite <- IHp1; rewrite <- IHp2; reflexivity).
   rewrite IHp. reflexivity.
 Qed.
 
-Lemma optimizerNNF_run_doubleneg_eq : forall (p:form),
-    double_negation_is_present (OptimizerNNF_run p false) = double_negation_is_present (OptimizerNNF_run p true).
+Lemma optimizerNNF_run_no_impl : forall p,
+  implication_is_present (optimizerNNF_run p true) = false.
+Proof.
+  induction p; 
+  try reflexivity;
+  try (simpl; rewrite IHp1; rewrite IHp2; reflexivity).
+  - simpl. rewrite optimizerNNF_run_implication_eq. rewrite IHp1. rewrite IHp2. reflexivity.
+  - simpl. rewrite optimizerNNF_run_implication_eq. assumption.
+Qed.
+
+(* Lemma optimizerNNF_run_doubleneg_eq : forall (p:form),
+    double_negation_is_present (optimizerNNF_run p false) = double_negation_is_present (optimizerNNF_run p true).
 Proof.
   intros p. induction p; try reflexivity ; simpl;
   try (rewrite <- IHp1; rewrite <- IHp2; reflexivity).
   rewrite IHp. reflexivity.
-Qed.
+Qed. *)
+
+(* Lemma optimizerNNF_run_no_impl : forall p,
+  double_negation_is_present (optimizerNNF_run p true) = false.
+Proof.
+  induction p; 
+  try reflexivity;
+  try (simpl; rewrite IHp1; rewrite IHp2; reflexivity).
+  - simpl. rewrite optimizerNNF_run_implication_eq. rewrite IHp1. rewrite IHp2. reflexivity.
+  - simpl. rewrite optimizerNNF_run_implication_eq. assumption.
+Qed. *)
 
 Lemma optimizerNNF_run_negconj_eq : forall (p:form),
-    negated_conjunction_is_present (OptimizerNNF_run p false) = negated_conjunction_is_present (OptimizerNNF_run p true).
+    negated_conjunction_is_present (optimizerNNF_run p false) = negated_conjunction_is_present (optimizerNNF_run p true).
 Proof.
   intros p. induction p; try reflexivity ; simpl;
   try (rewrite <- IHp1; rewrite <- IHp2; reflexivity).
   rewrite IHp. reflexivity.
+Qed.
+
+Lemma optimizerNNF_run_no_negconj : forall p,
+  negated_conjunction_is_present (optimizerNNF_run p true) = false.
+Proof.
+  induction p; 
+  try reflexivity;
+  try (simpl; rewrite IHp1; rewrite IHp2; reflexivity).
+  - simpl. rewrite optimizerNNF_run_negconj_eq. rewrite IHp1. rewrite IHp2. reflexivity.
+  - simpl. rewrite optimizerNNF_run_negconj_eq. assumption.
 Qed.
 
 Lemma optimizerNNF_run_negdisj_eq : forall (p:form),
-    negated_disjunction_is_present (OptimizerNNF_run p false) = negated_disjunction_is_present (OptimizerNNF_run p true).
+    negated_disjunction_is_present (optimizerNNF_run p false) = negated_disjunction_is_present (optimizerNNF_run p true).
 Proof.
   intros p. induction p; try reflexivity ; simpl;
   try (rewrite <- IHp1; rewrite <- IHp2; reflexivity).
   rewrite IHp. reflexivity.
 Qed.
 
-(* Lemma pls1 : forall p,
-  illegal_boolean_formulas_are_present p = illegal_boolean_formulas_are_present () *)
-Lemma plsplspls : forall p1 p2,
-  (illegal_boolean_formulas_are_present ((p1 F/\ p2)) = false) -> (illegal_boolean_formulas_are_present (p1) = false) /\ (illegal_boolean_formulas_are_present (p2) = false).
+Lemma optimizerNNF_run_no_negdisj : forall p,
+  negated_disjunction_is_present (optimizerNNF_run p true) = false.
 Proof.
-    intros. split.
-    - destruct p1 eqn:E1,p2 eqn:E2; 
-    try reflexivity ;
-    try discriminate;
-    try (apply orb_false_elim in H; apply H).
-    - destruct p1 eqn:E1,p2 eqn:E2; 
-    try reflexivity ;
-    try discriminate;
-    try assumption;
-    try (apply orb_false_elim in H; apply H).
+  induction p; 
+  try reflexivity;
+  try (simpl; rewrite IHp1; rewrite IHp2; reflexivity).
+  - simpl. rewrite optimizerNNF_run_negdisj_eq. rewrite IHp1. rewrite IHp2. reflexivity.
+  - simpl. rewrite optimizerNNF_run_negdisj_eq. assumption.
 Qed.
-(* MANGLER AT BLIVE CLEANED UP *)
 
+Lemma optimizer_preserves_no_neg_applied_to_non_litterals : forall p,
+  neg_applied_to_non_literals p = false ->
+  neg_applied_to_non_literals (Optimizer p) = false.
+Proof. 
+  intros p.
+  induction p;
+  intros H;
+  try reflexivity.
+  - simpl in H. 
+    apply orb_false_elim in H. destruct H as [Ha Hb]. apply IHp1 in Ha. apply IHp2 in Hb.
+    simpl.
+    destruct (Optimizer p1), (Optimizer p2); 
+    try reflexivity; 
+    try (simpl; simpl in IHp2; assumption);
+    try (simpl; rewrite orb_false_r; simpl in IHp1; assumption);
+    try (
+        simpl; simpl in Ha; simpl in Hb;
+        apply orb_false_elim in Ha; apply orb_false_elim in Hb;
+        destruct Ha as [Ha1 Ha2]; destruct Hb as [Hb1 Hb2];
+        rewrite Ha1; rewrite Ha2; rewrite Hb1; rewrite Hb2;
+        reflexivity
+      );
+    try (
+        simpl; simpl in Ha; simpl in Hb;
+        apply orb_false_elim in Ha;
+        destruct Ha as [Ha1 Ha2]; 
+        rewrite Ha1; rewrite Ha2; 
+        assumption
+    );
+    try (
+        simpl; simpl in Hb; simpl in Ha;
+        apply orb_false_elim in Hb;
+        destruct Hb as [Hb1 Hb2]; 
+        rewrite Hb1; rewrite Hb2; 
+        apply orb_false_intro; try reflexivity;
+        assumption
+    ).
+    + simpl. simpl in Ha. simpl in Hb.
+      rewrite Ha. rewrite Hb. reflexivity.
+  
+  - simpl in H. 
+    apply orb_false_elim in H. destruct H as [Ha Hb]. apply IHp1 in Ha. apply IHp2 in Hb.
+    simpl.
+    destruct (Optimizer p1), (Optimizer p2); 
+    try reflexivity; 
+    try (simpl; simpl in IHp2; assumption);
+    try (simpl; rewrite orb_false_r; simpl in IHp1; assumption);
+    try (
+        simpl; simpl in Ha; simpl in Hb;
+        apply orb_false_elim in Ha; apply orb_false_elim in Hb;
+        destruct Ha as [Ha1 Ha2]; destruct Hb as [Hb1 Hb2];
+        rewrite Ha1; rewrite Ha2; rewrite Hb1; rewrite Hb2;
+        reflexivity
+      );
+    try (
+        simpl; simpl in Ha; simpl in Hb;
+        apply orb_false_elim in Ha;
+        destruct Ha as [Ha1 Ha2]; 
+        rewrite Ha1; rewrite Ha2; 
+        assumption
+    );
+    try (
+        simpl; simpl in Hb; simpl in Ha;
+        apply orb_false_elim in Hb;
+        destruct Hb as [Hb1 Hb2]; 
+        rewrite Hb1; rewrite Hb2; 
+        apply orb_false_intro; try reflexivity;
+        assumption
+    ).
+    + simpl. simpl in Ha. simpl in Hb.
+      rewrite Ha. rewrite Hb. reflexivity.
 
+  - simpl in H. 
+    apply orb_false_elim in H. destruct H as [Ha Hb]. apply IHp1 in Ha. apply IHp2 in Hb.
+    simpl.
+    destruct (Optimizer p1), (Optimizer p2); 
+    try reflexivity; 
+    try (simpl; simpl in IHp2; assumption);
+    try (simpl; rewrite orb_false_r; simpl in IHp1; assumption);
+    try (
+        simpl; simpl in Ha; simpl in Hb;
+        apply orb_false_elim in Ha; apply orb_false_elim in Hb;
+        destruct Ha as [Ha1 Ha2]; destruct Hb as [Hb1 Hb2];
+        rewrite Ha1; rewrite Ha2; rewrite Hb1; rewrite Hb2;
+        reflexivity
+      );
+    try (
+        simpl; simpl in Ha; simpl in Hb;
+        apply orb_false_elim in Ha;
+        destruct Ha as [Ha1 Ha2]; 
+        rewrite Ha1; rewrite Ha2; 
+        assumption
+    );
+    try (
+        simpl; simpl in Hb; simpl in Ha;
+        apply orb_false_elim in Hb;
+        destruct Hb as [Hb1 Hb2]; 
+        rewrite Hb1; rewrite Hb2; 
+        apply orb_false_intro; try reflexivity;
+        assumption
+    ).
+    + simpl. simpl in Ha. simpl in Hb.
+      rewrite Ha. rewrite Hb. reflexivity.
+  
+  - simpl in H. simpl.
+    destruct p; 
+    try discriminate;
+    try (simpl; reflexivity).
+Qed.
 
-(* Lemma optimizerNNF_preserves_illegal_boolean_expr : forall p,
-  illegal_boolean_formulas_are_present p = false ->
-  illegal_boolean_formulas_are_present (OptimizerNNF_run p true) = false. *)
-
-
-(* OGSÅ FORKERT -- FUCKING DRÆB MIG LOL:
-Lemma iBelieve : forall p,
-  implication_is_present (Optimizer p) = implication_is_present p. *)
-Lemma iBelieve : forall p,
+Lemma optimizer_preserves_implication_is_present : forall p,
   implication_is_present p = false ->
   implication_is_present (Optimizer p) = false.
-Proof.
+Proof. 
   intros p.
-  induction p; 
+  induction p;
+  intros H;
   try reflexivity.
-  - intros H. simpl in H.
-    apply orb_false_elim in H. destruct H as [Ha Hb].
-    apply IHp1 in Ha. apply IHp2 in Hb.
-    simpl. simpl in Ha.
-    destruct (Optimizer p1) eqn:Ep1, (Optimizer p2) eqn:Ep2; 
+  - simpl in H. 
+    apply orb_false_elim in H. destruct H as [Ha Hb]. apply IHp1 in Ha. apply IHp2 in Hb.
+    simpl.
+    destruct (Optimizer p1), (Optimizer p2); 
     try reflexivity; 
-    try discriminate;
-    try (simpl; simpl in Hb; assumption);
-    try (simpl; simpl in Ha; rewrite orb_false_r; assumption);
-    try (simpl ; simpl in Ha; simpl in Hb; rewrite Ha; rewrite Hb; reflexivity).
-  - intros H. simpl in H.
-    apply orb_false_elim in H. destruct H as [Ha Hb].
-    apply IHp1 in Ha. apply IHp2 in Hb.
-    simpl. simpl in Ha.
-    destruct (Optimizer p1) eqn:Ep1, (Optimizer p2) eqn:Ep2; 
+    try (simpl; simpl in IHp2; assumption);
+    try (simpl; rewrite orb_false_r; simpl in IHp1; assumption);
+    try (
+        simpl; simpl in Ha; simpl in Hb;
+        apply orb_false_elim in Ha; apply orb_false_elim in Hb;
+        destruct Ha as [Ha1 Ha2]; destruct Hb as [Hb1 Hb2];
+        rewrite Ha1; rewrite Ha2; rewrite Hb1; rewrite Hb2;
+        reflexivity
+      );
+    try (
+        simpl; simpl in Ha; simpl in Hb;
+        apply orb_false_elim in Ha;
+        destruct Ha as [Ha1 Ha2]; 
+        rewrite Ha1; rewrite Ha2; 
+        assumption
+    );
+    try (
+        simpl; simpl in Hb; simpl in Ha;
+        apply orb_false_elim in Hb;
+        destruct Hb as [Hb1 Hb2]; 
+        rewrite Hb1; rewrite Hb2; 
+        apply orb_false_intro; try reflexivity;
+        assumption
+    ).
+    + simpl in Hb. discriminate.
+    + simpl. simpl in Ha. simpl in Hb.
+      rewrite Ha. rewrite Hb. reflexivity.
+  
+  - simpl in H. 
+    apply orb_false_elim in H. destruct H as [Ha Hb]. apply IHp1 in Ha. apply IHp2 in Hb.
+    simpl.
+    destruct (Optimizer p1), (Optimizer p2); 
     try reflexivity; 
-    try discriminate;
-    try (simpl; simpl in Hb; assumption);
-    try (simpl; simpl in Ha; rewrite orb_false_r; assumption);
-    try (simpl ; simpl in Ha; simpl in Hb; rewrite Ha; rewrite Hb; reflexivity).
-  - intros H. simpl in H. discriminate.
-  - intros H. simpl in H.
-    simpl. apply IHp. apply H.
-Qed. 
+    try (simpl; simpl in IHp2; assumption);
+    try (simpl; rewrite orb_false_r; simpl in IHp1; assumption);
+    try (
+        simpl; simpl in Ha; simpl in Hb;
+        apply orb_false_elim in Ha; apply orb_false_elim in Hb;
+        destruct Ha as [Ha1 Ha2]; destruct Hb as [Hb1 Hb2];
+        rewrite Ha1; rewrite Ha2; rewrite Hb1; rewrite Hb2;
+        reflexivity
+      );
+    try (
+        simpl; simpl in Ha; simpl in Hb;
+        apply orb_false_elim in Ha;
+        destruct Ha as [Ha1 Ha2]; 
+        rewrite Ha1; rewrite Ha2; 
+        assumption
+    );
+    try (
+        simpl; simpl in Hb; simpl in Ha;
+        apply orb_false_elim in Hb;
+        destruct Hb as [Hb1 Hb2]; 
+        rewrite Hb1; rewrite Hb2; 
+        apply orb_false_intro; try reflexivity;
+        assumption
+    ).
+    + simpl in Hb. discriminate.
+    + simpl. simpl in Ha. simpl in Hb.
+      rewrite Ha. rewrite Hb. reflexivity.
 
-Lemma double_neg_removeneg: forall p,
-  double_negation_is_present (F~ p) = false -> double_negation_is_present p = false.
+  - simpl in H. discriminate.
+  - simpl in H. simpl. apply IHp. assumption.
+Qed.
+
+Definition optimizerNNF (p:form) : form :=
+  Optimizer (optimizerNNF_run p true).
+
+Lemma optimizerNNF_neg_only_applied_to_literals : forall p,
+  neg_applied_to_non_literals (optimizerNNF p) = false.
 Proof.
   intros p.
-  induction p; 
-  try reflexivity;
-  simpl; intros H;
-  try assumption;
-  discriminate.
+  unfold optimizerNNF.
+  apply optimizer_preserves_no_neg_applied_to_non_litterals.
+  apply optimizerNNF_run_neg_only_applied_to_literals.
 Qed.
 
-Lemma neg_conj_removeneg: forall p,
-  negated_conjunction_is_present (F~ p) = false -> negated_conjunction_is_present p = false.
-Proof.
-    intros p.
-  induction p; 
-  try reflexivity;
-  simpl; intros H;
-  try assumption;
-  discriminate.
-Qed.
-
-Lemma neg_disj_removeneg: forall p,
-  negated_disjunction_is_present (F~ p) = false -> negated_disjunction_is_present p = false.
+Lemma optimizerNNF_no_implication_present : forall p,
+  implication_is_present (optimizerNNF p) = false.
 Proof.
   intros p.
-  induction p; 
-  try reflexivity;
-  simpl; intros H;
-  try assumption;
-  discriminate.
+  unfold optimizerNNF.
+  apply optimizer_preserves_implication_is_present.
+  apply optimizerNNF_run_no_impl.
 Qed.
 
-Lemma iBelieve2 : forall p,
-  double_negation_is_present p = false ->
-  negated_conjunction_is_present p = false ->
-  negated_disjunction_is_present p = false ->
-  (* Ovenstående tilføjet senere *)
-  double_negation_is_present (Optimizer p) = false.
+Lemma optimizerNNF_no_illegal_boolean_formulas_are_present : forall p,
+  illegal_boolean_formulas_are_present (optimizerNNF p) = false.
 Proof.
-  induction p; intros; try reflexivity.
-  - simpl in H. simpl in H0. simpl in H1. simpl. 
-    apply orb_false_elim in H as H'. destruct H' as [Ha' Hb'].
-    apply orb_false_elim in H0 as H0'. apply orb_false_elim in H1 as H1'.
-    destruct H0' as [H0a' H0b']. destruct H1' as [H1a' H1b'].
-    destruct (Optimizer p1) eqn:Ep1, (Optimizer p2) eqn:Ep2; 
-    try reflexivity;
-    try (simpl; simpl in IHp2; apply IHp2; try assumption);
-    try (simpl; rewrite orb_false_r; simpl in IHp1; apply IHp1; assumption);
-    simpl; 
-    apply orb_false_intro; 
-    try assumption;
-    try (simpl; simpl in IHp1; apply IHp1; assumption);
-    try (simpl; simpl in IHp2; apply IHp2; assumption).
-
-  - simpl in H. simpl in H0. simpl in H1. simpl. 
-    apply orb_false_elim in H as H'. destruct H' as [Ha' Hb'].
-    apply orb_false_elim in H0 as H0'. apply orb_false_elim in H1 as H1'.
-    destruct H0' as [H0a' H0b']. destruct H1' as [H1a' H1b'].
-    destruct (Optimizer p1) eqn:Ep1, (Optimizer p2) eqn:Ep2; 
-    try reflexivity;
-    try (simpl; simpl in IHp2; apply IHp2; try assumption);
-    try (simpl; rewrite orb_false_r; simpl in IHp1; apply IHp1; assumption);
-    simpl; 
-    apply orb_false_intro; 
-    try assumption;
-    try (simpl; simpl in IHp1; apply IHp1; assumption);
-    try (simpl; simpl in IHp2; apply IHp2; assumption).
-  
-  - simpl in H. simpl in H0. simpl in H1. simpl. 
-    apply orb_false_elim in H as H'. destruct H' as [Ha' Hb'].
-    apply orb_false_elim in H0 as H0'. apply orb_false_elim in H1 as H1'.
-    destruct H0' as [H0a' H0b']. destruct H1' as [H1a' H1b'].
-    destruct (Optimizer p1) eqn:Ep1, (Optimizer p2) eqn:Ep2; 
-    try reflexivity;
-    try (simpl; simpl in IHp2; apply IHp2; try assumption);
-    try (simpl; rewrite orb_false_r; simpl in IHp1; apply IHp1; assumption);
-    simpl; 
-    apply orb_false_intro; 
-    try assumption;
-    try (simpl; simpl in IHp1; apply IHp1; assumption);
-    try (simpl; simpl in IHp2; apply IHp2; assumption).
-  
-  -
-    assert (L: Optimizer (F~ p) = F~ (Optimizer (p))).
-    {
-      reflexivity.
-    }
-    rewrite L.
-    destruct (Optimizer p) eqn:Ep;
-    try reflexivity.
-    + simpl. simpl in IHp. apply IHp.
-      * apply double_neg_removeneg. assumption.
-      * apply neg_conj_removeneg. assumption.
-      * apply neg_disj_removeneg. assumption.  
-    + simpl. simpl in IHp. apply IHp.
-      * apply double_neg_removeneg. assumption.
-      * apply neg_conj_removeneg. assumption.
-      * apply neg_disj_removeneg. assumption.  
-    + simpl. simpl in IHp. apply IHp.
-      * apply double_neg_removeneg. assumption.
-      * apply neg_conj_removeneg. assumption.
-      * apply neg_disj_removeneg. assumption.  
-    + simpl. simpl in IHp. rewrite L in Ep. discriminate. apply IHp.
-      * apply double_neg_removeneg. assumption.
-      * apply neg_conj_removeneg. assumption.
-      * apply neg_disj_removeneg. assumption.  
-    
-
-Admitted. 
-
-(* wrong *)
-
-
-(* 
-unfold Optimized_form_doesn't_contain_illegal_expression.
-  induction (p) ;
-  try reflexivity ;
-  try assumption ;
-  try (
-        simpl ;
-        destruct (Optimizer f1), (Optimizer f2) ; 
-        try reflexivity ; 
-        try assumption ;
-        try (simpl; rewrite orb_false_r ; assumption) ;
-        try (simpl ; apply orb_false_intro ; assumption)
-      ). 
-*)
-Theorem OptimizerNNF_doesn't_contain_illegal_expressions : forall p,
-    OptimizerNNF_doesn't_contain_illegal_expression_on_form p.
-Proof.
-  unfold OptimizerNNF_doesn't_contain_illegal_expression_on_form ; repeat split.
-  - (* No implication is present *)
-    unfold OptimizerNNF.
-    apply iBelieve.
-    destruct p eqn: Ep; try reflexivity.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F/\ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F\/ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F-> f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.  
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (F~ f)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.
-  - 
-    unfold OptimizerNNF.
-    (* apply iBelieve. *)
-    destruct p eqn: Ep; try reflexivity.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F/\ f2)).
-      induction P; 
-      try reflexivity.
-      * simpl.
-        destruct (Optimizer (OptimizerNNF_run P1 true)), (Optimizer (OptimizerNNF_run P2 true));
-        try reflexivity;
-        try (simpl; simpl in IHP2; assumption);
-        (* ** simpl. simpl in IHP1. ap    *)
-        try (simpl; simpl in IHP1; rewrite orb_false_r; assumption);
-        try (simpl ; simpl in IHP2; simpl in IHP1; rewrite IHP2; rewrite IHP1; reflexivity).
-      * simpl.
-        destruct (Optimizer (OptimizerNNF_run P1 true)), (Optimizer (OptimizerNNF_run P2 true));
-        try reflexivity;
-        try (simpl; simpl in IHP2; assumption);
-        (* ** simpl. simpl in IHP1. ap    *)
-        try (simpl; simpl in IHP1; rewrite orb_false_r; assumption);
-        try (simpl ; simpl in IHP2; simpl in IHP1; rewrite IHP2; rewrite IHP1; reflexivity).
-      * simpl.
-        destruct (Optimizer (OptimizerNNF_run P1 true)), (Optimizer (OptimizerNNF_run P2 true)).
-        ** simpl. simpl in IHP1.  
-        try reflexivity.
-        try (simpl; simpl in IHP2; assumption);
-        (* ** simpl. simpl in IHP1. ap    *)
-        try (simpl; simpl in IHP1; rewrite orb_false_r; assumption);
-        try (simpl ; simpl in IHP2; simpl in IHP1; rewrite IHP2; rewrite IHP1; reflexivity).
-
-
-
-        
-        ** simpl. simpl in IHP2. assumption. 
-        try discriminate.
-      rewrite IHP1. rewrite IHP2. 
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      *
-       simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F\/ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F-> f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.  
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (F~ f)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.  
-  admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit. 
-Admitted.
-(* GAMMEL LØSNING
-+ unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F\/ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F-> f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.  
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (F~ f)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.
-*)
-
-Lemma fckpls : forall p,
-  implication_is_present (OptimizerNNF p) = implication_is_present (Optimizer p).
-Proof.
-  unfold OptimizerNNF.
-  intros p. induction p; try reflexivity ; simpl.
-  -
-   (* simpl in IHp1. rewrite <- IHp1. rewrite <- IHp2. simpl. *)
-    destruct (Optimizer p1) eqn:Ep1, (Optimizer p2) eqn:Ep2 ; 
-    try reflexivity.
-    + simpl.
-    try discriminate. 
-  try (rewrite <- IHp1; rewrite <- IHp2; reflexivity).
-  rewrite IHp. reflexivity.
-
-Theorem OptimizerNNF_doesn't_contain_illegal_expressions : forall p,
-    OptimizerNNF_doesn't_contain_illegal_expression_on_form p.
-Proof.
-  unfold OptimizerNNF_doesn't_contain_illegal_expression_on_form ; repeat split.
-  - (* No implication is present *)
-    destruct p eqn: Ep; try reflexivity.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F/\ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F\/ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F-> f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.  
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (F~ f)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_implication_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_implication_eq. assumption.
-
-  - (* No double negation is present *)
-    destruct p eqn: Ep; try reflexivity.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F/\ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_doubleneg_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_doubleneg_eq. assumption.  
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F\/ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_doubleneg_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_doubleneg_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F-> f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_doubleneg_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_doubleneg_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (F~ f)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_doubleneg_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_doubleneg_eq. assumption.   
-  
-  - (* No negated conjunction is present *)
-    destruct p eqn: Ep; try reflexivity.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F/\ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_negconj_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_negconj_eq. assumption.  
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F\/ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_negconj_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_negconj_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F-> f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_negconj_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_negconj_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (F~ f)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_negconj_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_negconj_eq. assumption. 
-    
-  - (* No negated disjunction is present *)
-    destruct p eqn: Ep; try reflexivity.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F/\ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_negdisj_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_negdisj_eq. assumption.  
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F\/ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_negdisj_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_negdisj_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F-> f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_negdisj_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_negdisj_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (F~ f)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_negdisj_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_negdisj_eq. assumption.
-
-  - (* No SOMETHING *) 
-    unfold OptimizerNNF. 
-    (* unfold OptimizerNNF_run. *)
-    (* induction p; try reflexivity. *)
-    (* +  *)
-  induction (p) ;
-  try reflexivity ;
-  try assumption.
-  + simpl. destruct (Optimizer f1) eqn:Ef1, (Optimizer f2) eqn:Ef2;
-    try reflexivity ;
-    try assumption.
-    * simpl. simpl in IHf2. rewrite IHf2. destruct f; try reflexivity.
-      **  
-  try (
-        simpl ;
-        destruct (Optimizer p1), (Optimizer p2) ; 
-        try reflexivity ; 
-        try assumption ;
-        try (simpl; rewrite orb_false_r ; assumption) ;
-        try (simpl ; apply orb_false_intro ; assumption)
-      ).
-      + simpl.  
-
-    destruct p eqn: Ep; try reflexivity.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F/\ f2)).
-      induction P; 
-      try reflexivity .
-      * simpl. 
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_negdisj_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_negdisj_eq. assumption.  
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F\/ f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_negdisj_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_negdisj_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (f1 F-> f2)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_negdisj_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_negdisj_eq. assumption.
-    + unfold OptimizerNNF.
-      set (P:= Optimizer (F~ f)).
-      induction P; 
-      try reflexivity ;
-      try (simpl ; rewrite IHP1 ; rewrite IHP2 ; reflexivity).
-      * simpl. rewrite IHP2. rewrite orb_false_r. rewrite optimizerNNF_run_negdisj_eq. rewrite IHP1.
-        reflexivity.
-      * simpl. rewrite optimizerNNF_run_negdisj_eq. assumption.
+  intros p.
+  unfold optimizerNNF.
+  apply Optimizer_doesn't_contain_illegal_expressions.
 Qed.
-  (* - induction p; try reflexivity.
-    + unfold implication_is_present. unfold OptimizerNNF.
-      unfold OptimizerNNF in IHp1. unfold OptimizerNNF in IHp2.
-      unfold Optimizer. induction (Optimizer p1), (Optimizer p2). simpl.
-      * 
-      induction p1,p2.
-    rewrite IHp1. simpl in IHp1.  
-  ().unfold i mplication_is_present.  induction (p) ; try reflexivity ;
-    try (simpl; apply orb_false_intro; assumption).
-    + simpl. apply orb_false_intro; try assumption.
-      unfold implication_is_present.
-      unfold Optimizer_NNF. *)
-    (* + simpl. apply orb_false_intro; assumption.
-    + simpl. apply orb_false_intro; assumption.
-  try reflexivity ;
-  try assumption ;
-  try (
-        simpl ;
-        destruct (Optimizer f1), (Optimizer f2) ; 
-        try reflexivity ; 
-        try assumption ;
-        try (simpl; rewrite orb_false_r ; assumption) ;
-        try (simpl ; apply orb_false_intro ; assumption)
-      ).  *)
-(* Admitted. *)
 
-Lemma OptimizerNNF_run_false_negb : forall (p:form) (v : valuation),
-    negb (interp v (OptimizerNNF_run p true)) = interp v (OptimizerNNF_run p false).
+Definition optimizerNNF_doesn't_contain_illegal_expression_on_form (p : form) : Prop :=
+  implication_is_present (optimizerNNF p) = false 
+  /\ neg_applied_to_non_literals (optimizerNNF p) = false
+  /\ illegal_boolean_formulas_are_present (optimizerNNF p) = false.
+
+Theorem optimizerNNF_creates_correct_form : forall p,
+  optimizerNNF_doesn't_contain_illegal_expression_on_form p.
+Proof.
+  unfold optimizerNNF_doesn't_contain_illegal_expression_on_form; repeat split.
+  - apply optimizerNNF_no_implication_present.
+  - apply optimizerNNF_neg_only_applied_to_literals.
+  - apply optimizerNNF_no_illegal_boolean_formulas_are_present.
+Qed.
+
+Lemma optimizerNNF_run_false_negb : forall (p:form) (v : valuation),
+    negb (interp v (optimizerNNF_run p true)) = interp v (optimizerNNF_run p false).
 Proof.
   intros p v. 
   induction p; 
@@ -1354,74 +943,36 @@ Proof.
   - rewrite <- IHp. apply negb_involutive.
 Qed. 
 
-Definition OptimizerNNF_preserves_interp_on_form (p: form) (v: valuation) : Prop := 
-    interp v p = interp v (OptimizerNNF p).
+Definition optimizerNNF_preserves_interp_on_form (p: form) (v: valuation) : Prop := 
+    interp v p = interp v (optimizerNNF p).
   
-Theorem OptimizerNNF_preservers_interp : forall p v,
-  OptimizerNNF_preserves_interp_on_form p v.
+Theorem optimizerNNF_preservers_interp : forall p v,
+  optimizerNNF_preserves_interp_on_form p v.
 Proof.
   intros p v. 
-  unfold OptimizerNNF_preserves_interp_on_form. unfold OptimizerNNF.
+  unfold optimizerNNF_preserves_interp_on_form. unfold optimizerNNF.
+  rewrite <-Optimizer_preserves_interp.
   induction p ; try reflexivity.
-  - simpl. destruct (Optimizer p1), (Optimizer p2) ;
-    try (simpl; simpl in IHp1; simpl in IHp2 ; rewrite IHp1; rewrite IHp2; reflexivity);
-    try (simpl; simpl in IHp1; simpl in IHp2; rewrite IHp2; apply andb ) ;
-    try (simpl; simpl in IHp1; simpl in IHp2; rewrite IHp2; apply andb_false_r).
-    + simpl. simpl in IHp1. simpl in IHp2. rewrite IHp1. rewrite IHp2. apply andb_true_r.
-  - simpl. destruct (Optimizer p1), (Optimizer p2);
-    try (simpl; simpl in IHp1; simpl in IHp2 ; rewrite IHp1; rewrite IHp2; reflexivity);
-    try (simpl; simpl in IHp1; simpl in IHp2; rewrite IHp2; apply orb );
-    try (simpl; simpl in IHp1; simpl in IHp2; rewrite IHp2; apply orb_true_r).
-    + simpl. simpl in IHp1. simpl in IHp2. rewrite IHp1. rewrite IHp2. apply orb_false_r.
-  - simpl. rewrite <-OptimizerNNF_run_false_negb. rewrite <-IHp1. rewrite <- IHp2.
-    apply implb_orb.
-  - simpl. rewrite IHp. apply OptimizerNNF_run_false_negb.  
-  (* unfold Optimizer. simpl.  
-    destruct (Optimizer p1) eqn: Ep1 ; 
-    try (
-          rwrt_h1h2 IHp1 IHp2 ; 
-          reflexivity
-        ) ;
-    simpl ; destruct (Optimizer p2) eqn:Ep2 ; try (rwrt_h1h2 IHp1 IHp2; reflexivity) ;
-    try (
-          rwrt_h1h2 IHp1 IHp2 ;
-          apply andb_true_r 
-        ) ;
-    try (
-          rwrt_h1h2 IHp1 IHp2 ;
-          apply andb_false_r 
-        ).
-  - 
-    destruct (Optimizer p1) eqn: Ep1 ;
-    try (
-          rwrt_h1h2 IHp1 IHp2 ; 
-          reflexivity
-        ) ;
-    simpl ; destruct (Optimizer p2) eqn:Ep2 ; try (rwrt_h1h2 IHp1 IHp2; reflexivity) ;
-    try (
-          rwrt_h1h2 IHp1 IHp2 ;
-          apply orb_true_r 
-        ) ;
-    try (
-          rwrt_h1h2 IHp1 IHp2 ;
-          apply orb_false_r 
-        ).
-  - simpl. rewrite IHp1. rewrite IHp2. rewrite <- Optimizer_NNF_false_negb. 
-    apply implb_orb.
-  - simpl. rewrite IHp. rewrite <- Optimizer_NNF_false_negb. reflexivity.   *)
-Qed. 
+  - simpl. rewrite IHp1. rewrite IHp2. reflexivity.
+  - simpl. rewrite IHp1. rewrite IHp2. reflexivity.
+  - simpl. rewrite <-optimizerNNF_run_false_negb. 
+    rewrite <-IHp1. rewrite <-IHp2. 
+    destruct (interp v p1), (interp v p2); 
+    try reflexivity.
+  - simpl. rewrite <-optimizerNNF_run_false_negb. rewrite IHp. reflexivity. 
+Qed.
 
-Theorem OptimiserNNF_correct : forall p v,
-OptimizerNNF_doesn't_contain_illegal_expression_on_form p /\ OptimizerNNF_preserves_interp_on_form p v.
+Theorem optimizerNNF_correct : forall p v,
+optimizerNNF_doesn't_contain_illegal_expression_on_form p /\ optimizerNNF_preserves_interp_on_form p v.
 Proof.
   intros.
   split. 
-  - apply OptimizerNNF_doesn't_contain_illegal_expressions.
-  - apply OptimizerNNF_preservers_interp.
+  - apply optimizerNNF_creates_correct_form.
+  - apply optimizerNNF_preservers_interp.
 Qed.
 
 Definition solverNNF (p : form ) : bool :=
-  match find_valuation (OptimizerNNF p) with
+  match find_valuation (optimizerNNF p) with
   | Some _ => true
   | None => false
   end.
@@ -1430,18 +981,18 @@ Lemma solverNNF_sound : forall p, solverNNF p = true -> satisfiable p.
 Proof.
   intros p H. 
   unfold solverNNF in H.
-  destruct (find_valuation (OptimizerNNF p)) eqn:EH.
+  destruct (find_valuation (optimizerNNF p)) eqn:EH.
   - unfold find_valuation in EH. 
     unfold filter in EH. 
-    assert (L: forall x, interp x p = interp x (OptimizerNNF p)).
+    assert (L: forall x, interp x p = interp x (optimizerNNF p)).
     {
-      apply OptimizerNNF_preservers_interp.
+      apply optimizerNNF_preservers_interp.
     }
-    set (tt := generate_truthtable (list_variables (OptimizerNNF p)) empty_valuation) in EH.
+    set (tt := generate_truthtable (list_variables (optimizerNNF p)) empty_valuation) in EH.
     induction tt as [| v' l' IHl'].
     + discriminate.
-    + destruct (interp v' (OptimizerNNF p)) eqn: Ev'.
-      * rewrite <- OptimizerNNF_preservers_interp in Ev'. unfold satisfiable. exists v'. assumption.
+    + destruct (interp v' (optimizerNNF p)) eqn: Ev'.
+      * rewrite <- optimizerNNF_preservers_interp in Ev'. unfold satisfiable. exists v'. assumption.
       * apply IHl'. assumption.
   - discriminate.
 Qed.
