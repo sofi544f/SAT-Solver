@@ -482,8 +482,6 @@ Proof.
 Qed.
 
 (* EXTRA -- Negation Normal Form *)
-(* NOTE: Havde ikke tænkt over, at det også var nødvendigt at fjerne
-         udtryk på formen ((X F/\ Y) F/\ Ftrue) *)
 
 Fixpoint optimizerNNF_run (p : form) (b: bool) : form :=
   match p, b with
@@ -593,7 +591,7 @@ Proof.
   - simpl. rewrite optimizerNNF_run_implication_eq. assumption.
 Qed.
 
-(* Lemma optimizer_preserves_no_neg_applied_to_non_litterals : forall p,
+Lemma optimizer_preserves_no_neg_applied_to_non_litterals : forall p,
   neg_applied_to_non_literals p = false ->
   neg_applied_to_non_literals (Optimizer p) = false.
 Proof. 
@@ -779,171 +777,10 @@ Proof.
 
   - simpl in H. discriminate.
   - simpl in H. simpl. apply IHp. assumption.
-Qed. *)
-
-(* BOOLEAN-OPTIMIZER *)
-
-Fixpoint optimizer_bool (p : form) : form :=
-  match p with
-  (* SAME *)
-  | Fvar x => Fvar x
-  | Ftrue => Ftrue
-  | Ffalse => Ffalse
-  (* SENDES VIDERE *)
-  | Fnot f => Fnot (optimizer_bool f)
-  | Fimplies f1 f2 => Fimplies (optimizer_bool f1) (optimizer_bool f2)
-  (* DIREKTE OPTIMIZED *)
-  | Fand f1 f2 =>
-      match optimizer_bool f1, optimizer_bool f2 with
-      | Ftrue, f2' => f2'
-      | f1', Ftrue => f1'
-      | _, Ffalse => Ffalse
-      | Ffalse, _ => Ffalse
-      | _, _ => Fand (optimizer_bool f1) (optimizer_bool f2)
-      end
-  | For f1 f2 => 
-  (* For (Optimizer f1) (Optimizer f2) *)
-      match optimizer_bool f1, optimizer_bool f2 with
-      | Ftrue, _ => Ftrue
-      | _, Ftrue => Ftrue
-      | f1', Ffalse => f1'
-      | Ffalse, f2' => f2'
-      | _, _ => For (optimizer_bool f1) (optimizer_bool f2)
-      end
-  end.
-
-Lemma optimizer_preserves_no_neg_applied_to_non_litterals : forall p,
-  neg_applied_to_non_literals p = false ->
-  neg_applied_to_non_literals (optimizer_bool p) = false.
-Proof. 
-  intros p.
-  induction p;
-  intros H;
-  try reflexivity.
-  - simpl in H. 
-    apply orb_false_elim in H. destruct H as [Ha Hb]. 
-    apply IHp1 in Ha. apply IHp2 in Hb.
-    simpl.
-    destruct (optimizer_bool p1), (optimizer_bool p2); 
-    try reflexivity;
-    try (simpl; simpl in Hb; assumption);
-    try (simpl; rewrite orb_false_r; simpl in Ha; assumption);
-    try (simpl; simpl in Ha; simpl in Hb; rewrite Ha; rewrite Hb; reflexivity).
-  
-  - simpl in H. 
-    apply orb_false_elim in H. destruct H as [Ha Hb]. 
-    apply IHp1 in Ha. apply IHp2 in Hb.
-    simpl.
-    destruct (optimizer_bool p1), (optimizer_bool p2) ; 
-    try reflexivity;
-    try (simpl; simpl in Hb; assumption);
-    try (simpl; rewrite orb_false_r; simpl in Ha; assumption);
-    try (simpl; simpl in Ha; simpl in Hb; rewrite Ha; rewrite Hb; reflexivity).
-
-  - simpl in H. 
-    apply orb_false_elim in H. destruct H as [Ha Hb]. 
-    apply IHp1 in Ha. apply IHp2 in Hb.
-    simpl.
-    destruct (optimizer_bool p1), (optimizer_bool p2); 
-    try reflexivity;
-    try (simpl; simpl in Hb; assumption);
-    try (simpl; rewrite orb_false_r; simpl in Ha; assumption);
-    try (simpl; simpl in Ha; simpl in Hb; rewrite Ha; rewrite Hb; reflexivity).
-  
-  - simpl in H. simpl.
-    destruct p; 
-    try discriminate;
-    try (simpl; reflexivity).
 Qed.
-
-Lemma optimizer_preserves_implication_is_present : forall p,
-  implication_is_present p = false ->
-  implication_is_present (optimizer_bool p) = false.
-Proof. 
-  intros p.
-  induction p;
-  intros H;
-  try reflexivity.
-  - simpl in H. 
-    apply orb_false_elim in H. destruct H as [Ha Hb]. 
-    apply IHp1 in Ha. apply IHp2 in Hb.
-    simpl.
-    destruct (optimizer_bool p1), (optimizer_bool p2); 
-    try reflexivity;
-    try (simpl; simpl in Hb; assumption);
-    try (simpl; rewrite orb_false_r; simpl in Ha; assumption);
-    try (simpl; simpl in Ha; simpl in Hb; rewrite Ha; rewrite Hb; reflexivity).
-
-  - simpl in H. 
-    apply orb_false_elim in H. destruct H as [Ha Hb]. 
-    apply IHp1 in Ha. apply IHp2 in Hb.
-    simpl.
-    destruct (optimizer_bool p1), (optimizer_bool p2); 
-    try reflexivity;
-    try (simpl; simpl in Hb; assumption);
-    try (simpl; rewrite orb_false_r; simpl in Ha; assumption);
-    try (simpl; simpl in Ha; simpl in Hb; rewrite Ha; rewrite Hb; reflexivity).
-
-  - simpl in H. discriminate.
-  - simpl in H. simpl. apply IHp. assumption.
-Qed.
-
-(* CHECKING BOOLEAN OPTIMIZER *)
-
-Fixpoint boolean_conj_disj_present (p : form) : bool :=
-  match p with
-  (* SAME *)
-  | Fvar x => false
-  | Ftrue => false
-  | Ffalse => false
-  (* SENDES VIDERE *)
-  | Fnot f => boolean_conj_disj_present f
-  | Fimplies f1 f2 => orb (boolean_conj_disj_present f1) (boolean_conj_disj_present f2)
-  (* DIREKTE OPTIMIZED *)
-  | Fand f1 f2 =>
-      match f1, f2 with
-      | _, Ftrue => true
-      | Ftrue, _ => true
-      | _, Ffalse => true
-      | Ffalse, _ => true
-      | _, _ => orb (boolean_conj_disj_present f1) (boolean_conj_disj_present f2)
-      end
-  | For f1 f2 => 
-      match  f1, f2 with
-      | _, Ftrue => true
-      | Ftrue, _ => true
-      | _, Ffalse => true
-      | Ffalse, _ => true
-      | _, _ => orb (boolean_conj_disj_present f1) (boolean_conj_disj_present f2)
-      end
-  end.
-
-Definition optimizer_bool_form_contains_no_bool_conj_disj (p : form) : Prop :=
-  boolean_conj_disj_present (optimizer_bool p) = false.
-
-Theorem optimizer_bool_contains_no_bool_conj_disj : forall p,
-    optimizer_bool_form_contains_no_bool_conj_disj p.
-Proof.
-  unfold optimizer_bool_form_contains_no_bool_conj_disj.
-  induction (p) ;
-  try reflexivity ;
-  try assumption ;
-  try (
-        simpl ;
-        destruct (optimizer_bool f1), (optimizer_bool f2) ; 
-        try reflexivity ; 
-        try assumption ;
-        try (simpl; rewrite orb_false_r ; assumption) ;
-        try (simpl ; apply orb_false_intro ; assumption)
-      ). 
-Qed. 
-
-
-(* END BOOLEAN OPTIMIZER *)
 
 Definition optimizerNNF (p:form) : form :=
-  (* Optimizer (optimizerNNF_run p true). *)
-  optimizer_bool (optimizerNNF_run p true).
+  Optimizer (optimizerNNF_run p true).
 
 Lemma optimizerNNF_neg_only_applied_to_literals : forall p,
   neg_applied_to_non_literals (optimizerNNF p) = false.
@@ -964,17 +801,17 @@ Proof.
 Qed.
 
 Lemma optimizerNNF_no_illegal_boolean_formulas_are_present : forall p,
-  boolean_conj_disj_present (optimizerNNF p) = false.
+  illegal_boolean_formulas_are_present (optimizerNNF p) = false.
 Proof.
   intros p.
   unfold optimizerNNF.
-  apply optimizer_bool_contains_no_bool_conj_disj.
+  apply Optimizer_doesn't_contain_illegal_expressions.
 Qed.
 
 Definition optimizerNNF_doesn't_contain_illegal_expression_on_form (p : form) : Prop :=
   implication_is_present (optimizerNNF p) = false 
   /\ neg_applied_to_non_literals (optimizerNNF p) = false
-  /\ boolean_conj_disj_present (optimizerNNF p) = false.
+  /\ illegal_boolean_formulas_are_present (optimizerNNF p) = false.
 
 Theorem optimizerNNF_creates_correct_form : forall p,
   optimizerNNF_doesn't_contain_illegal_expression_on_form p.
@@ -998,30 +835,6 @@ Proof.
   - rewrite <- IHp. apply negb_involutive.
 Qed. 
 
-(* ADDITION *)
-Definition optimizer_bool_preserves_interp_on_form (p: form) (v : valuation) : Prop :=
-  interp v p = interp v (optimizer_bool p).
-
-Theorem optimizer_bool_preserves_interp : forall p v, 
-    optimizer_bool_preserves_interp_on_form p v.
-Proof.
-  unfold optimizer_bool_preserves_interp_on_form.
-  intros p v. induction p ; simpl ; try reflexivity.
-  - 
-    destruct (optimizer_bool p1), (optimizer_bool p2);
-    try (rwrt_h1h2 IHp1 IHp2; reflexivity);
-    try (rwrt_h1h2 IHp1 IHp2; simpl; apply andb_true_r);
-    try (rwrt_h1h2 IHp1 IHp2; simpl; apply andb_false_r).
-  - 
-    destruct (optimizer_bool p1), (optimizer_bool p2);
-    try (rwrt_h1h2 IHp1 IHp2; reflexivity);
-    try (rwrt_h1h2 IHp1 IHp2; simpl; apply orb_true_r);
-    try (rwrt_h1h2 IHp1 IHp2; simpl; apply orb_false_r).
-  - rewrite IHp1. rewrite IHp2. reflexivity.
-  - rewrite IHp. reflexivity.  
-Qed. 
-(* END ADDITION *)
-
 Definition optimizerNNF_preserves_interp_on_form (p: form) (v: valuation) : Prop := 
     interp v p = interp v (optimizerNNF p).
   
@@ -1030,7 +843,7 @@ Theorem optimizerNNF_preservers_interp : forall p v,
 Proof.
   intros p v. 
   unfold optimizerNNF_preserves_interp_on_form. unfold optimizerNNF.
-  rewrite <-optimizer_bool_preserves_interp.
+  rewrite <-Optimizer_preserves_interp.
   induction p ; try reflexivity.
   - simpl. rewrite IHp1. rewrite IHp2. reflexivity.
   - simpl. rewrite IHp1. rewrite IHp2. reflexivity.
@@ -1126,6 +939,8 @@ Fixpoint optimizerCNF_step (p : form) : form :=
     | Fimplies f1 f2 => Fimplies (optimizerCNF_step f1) (optimizerCNF_step f2)
   end.
 
+
+
 Fixpoint count_steps (p: form) (n: nat) : nat :=
   match p with 
     (* SAME *)
@@ -1133,10 +948,10 @@ Fixpoint count_steps (p: form) (n: nat) : nat :=
     | Ftrue => 0
     | Ffalse => 0
     | Fnot f => count_steps f n
-    | Fand f1 f2 => n + (max (count_steps f1 n) (count_steps f2 n))
+    | Fand f1 f2 => n + (count_steps f1 n) + (count_steps f2 n)
     (* SENDES VIDERE *)
     | For f1 f2 => (count_steps f1 (n + 1)) + (count_steps f2 (n + 1))
-    | Fimplies f1 f2 => max (count_steps f1 n) (count_steps f2 n)
+    | Fimplies f1 f2 => (count_steps f1 n) + (count_steps f2 n)
   end.
 
 Compute (count_steps (X F\/ (Z F/\ Y)) 0).
@@ -1150,12 +965,10 @@ Proof.
   induction p; 
   try reflexivity;
   intros n; simpl;
-  try (apply Nat.max_le_compat);
+  try (apply Nat.add_le_mono);
   try auto.
-  - apply Nat.add_le_mono.
-    + rewrite Nat.add_comm. apply Nat.le_succ_diag_r.
-    + apply Nat.max_le_compat; auto.
   - apply Nat.add_le_mono; auto.
+    rewrite Nat.add_1_r. auto.
 Qed.
 
 Fixpoint count_Fand (p : form) : nat :=
@@ -1262,57 +1075,6 @@ Proof.
     apply IHp1_2 in L2; rewrite L2;
     reflexivity
   ).
-  (* - simpl. rewrite Nat.max_0_r in H.
-    destruct (count_steps p1_1 2) eqn: Ep1, (count_steps p1_1 2) eqn:Ep2;
-    try discriminate.
-    + rewrite Nat.max_0_l in H. 
-      assert (L1: le (count_steps p1_1 1) (count_steps p1_1 2)); try apply optimizerCNF_step_dec_with_nat.
-      assert (L2: le (count_steps p1_2 1) (count_steps p1_2 2)); try apply optimizerCNF_step_dec_with_nat.
-      rewrite Ep2 in L1. rewrite H in L2.
-      inversion L1. inversion L2.
-      simpl in IHp1_1. rewrite Nat.max_0_r in IHp1_1. apply IHp1_1 in H1.
-      simpl in IHp1_2. rewrite Nat.max_0_r in IHp1_2. apply IHp1_2 in H2.
-      rewrite Nat.add_0_r in H1. rewrite Nat.add_0_r in H2.
-      rewrite H1. rewrite H2. reflexivity.
-    + assert (contra: (S n) <= (max (S n) (count_steps p1_2 2))).
-      {
-        apply Nat.le_max_l.
-      }
-      rewrite H in contra. inversion contra.
-  - simpl. rewrite Nat.max_0_r in H.
-    destruct (count_steps p1_1 2) eqn: Ep1, (count_steps p1_1 2) eqn:Ep2;
-    try discriminate.
-    + rewrite Nat.max_0_l in H. 
-      assert (L1: le (count_steps p1_1 1) (count_steps p1_1 2)); try apply optimizerCNF_step_dec_with_nat.
-      assert (L2: le (count_steps p1_2 1) (count_steps p1_2 2)); try apply optimizerCNF_step_dec_with_nat.
-      rewrite Ep2 in L1. rewrite H in L2.
-      inversion L1. inversion L2.
-      simpl in IHp1_1. rewrite Nat.max_0_r in IHp1_1. apply IHp1_1 in H1.
-      simpl in IHp1_2. rewrite Nat.max_0_r in IHp1_2. apply IHp1_2 in H2.
-      rewrite Nat.add_0_r in H1. rewrite Nat.add_0_r in H2.
-      rewrite H1. rewrite H2. reflexivity.
-    + assert (contra: (S n) <= (max (S n) (count_steps p1_2 2))).
-      {
-        apply Nat.le_max_l.
-      }
-      rewrite H in contra. inversion contra.
-  - simpl. rewrite Nat.max_0_r in H.
-    destruct (count_steps p1_1 2) eqn: Ep1, (count_steps p1_1 2) eqn:Ep2;
-    try discriminate.
-    + rewrite Nat.max_0_l in H. 
-      assert (L1: le (count_steps p1_1 1) (count_steps p1_1 2)); try apply optimizerCNF_step_dec_with_nat.
-      assert (L2: le (count_steps p1_2 1) (count_steps p1_2 2)); try apply optimizerCNF_step_dec_with_nat.
-      rewrite Ep2 in L1. rewrite H in L2.
-      inversion L1. inversion L2.
-      simpl in IHp1_1. rewrite Nat.max_0_r in IHp1_1. apply IHp1_1 in H1.
-      simpl in IHp1_2. rewrite Nat.max_0_r in IHp1_2. apply IHp1_2 in H2.
-      rewrite Nat.add_0_r in H1. rewrite Nat.add_0_r in H2.
-      rewrite H1. rewrite H2. reflexivity.
-    + assert (contra: (S n) <= (max (S n) (count_steps p1_2 2))).
-      {
-        apply Nat.le_max_l.
-      }
-      rewrite H in contra. inversion contra. *)
 
   - simpl.
     simpl in H. 
@@ -1440,7 +1202,7 @@ Qed.
 
 
 
-(* SLETTET ?:
+(* 
 Lemma optimizerCNF_step_never_increases_step_count_from_0 : forall p,
   count_steps (p) 0 = 0 ->
   count_steps (optimizerCNF_step (optimizerNNF p)) 0 = 0.
@@ -1617,241 +1379,6 @@ Proof.
   - simpl. apply IHp. simpl in H. assumption. 
 Qed.
 
-Lemma count_something : forall p n,
-  count_steps p (S n) = 0 ->
-  count_steps p n = 0.
-Proof.
-  intros p.
-  induction p;
-  intros n H;
-  try reflexivity.
-  - discriminate.
-  - simpl. simpl in H.
-    destruct (count_steps p1 (S (n + 1))) eqn:E1, (count_steps p2 (S (n + 1))) eqn:E2;
-    try discriminate.
-    apply IHp1 in E1. apply IHp2 in E2.
-    rewrite E1. rewrite E2.
-    reflexivity.
-  - simpl. simpl in H.
-    destruct (count_steps p1 (S (n))) eqn:E1, (count_steps p2 (S (n))) eqn:E2;
-    try discriminate.
-    apply IHp1 in E1. apply IHp2 in E2.
-    rewrite E1. rewrite E2.
-    reflexivity.
-  - simpl. simpl in H. apply IHp. assumption.
-Qed.
-
-Lemma max_eq_0_0_0 : forall n m,
-  max n m = 0 ->
-  n = 0 /\ m = 0.
-Proof.
-  intros n m H.
-  destruct n eqn:En, m eqn:Em; try discriminate.
-  split; reflexivity.
-Qed.
-Lemma add_eq_0_0_0 : forall n m,
-  n + m = 0 ->
-  n = 0 /\ m = 0.
-Proof.
-  intros n m H.
-  destruct n eqn:En, m eqn:Em; try discriminate.
-  split; reflexivity.
-Qed.
-
-Lemma pls2 : forall p n,
-  count_steps p (S n) = 0 ->
-  count_Fand p = 0.
-Proof.
-  intros p.
-  induction p;
-  intros n H;
-  try reflexivity.
-  - inversion H.
-  - simpl. simpl in H. apply add_eq_0_0_0 in H. destruct H as [Ha Hb].
-    apply IHp1 in Ha. apply IHp2 in Hb.  
-    rewrite Ha. rewrite Hb. reflexivity.
-  - simpl. simpl in H. apply max_eq_0_0_0 in H. destruct H as [Ha Hb].
-    apply IHp1 in Ha. apply IHp2 in Hb.  
-    rewrite Ha. rewrite Hb. reflexivity.
-  - simpl. simpl in H. apply IHp in H. assumption.
-Qed.
-
-Lemma Forbedret_PLS : forall p,
-  neg_applied_to_non_literals p = false ->
-  implication_is_present p = false ->
-  boolean_conj_disj_present p = false ->
-  count_steps p 0 = 0 
-  \/ S (count_steps (optimizerCNF_step p) 0) = (count_steps p 0).
-Proof.
-  intros p.
-  induction p;
-  intros H1 H2 H3;
-  try (left; reflexivity).
-  - simpl. simpl in H1. simpl in H2. simpl in H3.
-    apply orb_false_elim in H1. apply orb_false_elim in H2.
-    destruct H1 as [H1A H1B]. destruct H2 as [H2A H2B].
-    assert (H3A: boolean_conj_disj_present p1 = false).
-    {
-      destruct p1, p2; 
-      try discriminate; 
-      apply orb_false_elim in H3;
-      destruct H3;
-      assumption.
-    }
-    assert (H3B: boolean_conj_disj_present p2 = false).
-    {
-      destruct p1, p2; 
-      try discriminate; 
-      apply orb_false_elim in H3;
-      destruct H3;
-      assumption.
-    }
-    clear H3.
-
-    assert (IH1: count_steps p1 0 = 0 \/ S (count_steps (optimizerCNF_step p1) 0) = (count_steps p1 0)); try auto.
-    assert (IH2: count_steps p2 0 = 0 \/ S (count_steps (optimizerCNF_step p2) 0) = (count_steps p2 0)); try auto.
-
-    destruct IH1; destruct IH2.
-    + left. rewrite H. rewrite H0. reflexivity.
-    + simpl. right. rewrite H. 
-      apply count_step_0_impl_CNF_step_count_step_0 in H. 
-      rewrite H.
-      repeat rewrite Nat.max_0_l. assumption.
-    + simpl. right. rewrite H0. 
-      apply count_step_0_impl_CNF_step_count_step_0 in H0. 
-      rewrite H0.
-      repeat rewrite Nat.max_0_r. assumption. 
-    + right. admit.
-  
-  - simpl.
-  admit.
-  (* - simpl.
-    simpl. simpl in H1. simpl in H2. simpl in H3.
-    apply orb_false_elim in H1. apply orb_false_elim in H2.
-    destruct H1 as [H1A H1B]. destruct H2 as [H2A H2B].
-    assert (H3A: illegal_boolean_formulas_are_present p1 = false).
-    {
-      destruct p1, p2; 
-      try discriminate; 
-      apply orb_false_elim in H3;
-      destruct H3;
-      assumption.
-    }
-    assert (H3B: illegal_boolean_formulas_are_present p2 = false).
-    {
-      destruct p1, p2; 
-      try discriminate; 
-      apply orb_false_elim in H3;
-      destruct H3;
-      assumption.
-    }
-    clear H3.
-
-    assert (IH1: count_steps p1 0 = 0 \/ S (count_steps (optimizerCNF_step p1) 0) = (count_steps p1 0)); try auto.
-    assert (IH2: count_steps p2 0 = 0 \/ S (count_steps (optimizerCNF_step p2) 0) = (count_steps p2 0)); try auto.
-
-    destruct (count_steps p1 1) eqn:E1, (count_steps p2 1) eqn:E2.
-    + left. reflexivity.
-    + right.
-      apply count_something in E1 as E1'.
-      destruct IH2.
-      * apply pls2 in E1 as E1F.
-        destruct p1 eqn:Ep1; try discriminate.
-        ** destruct p2 eqn:Ep2; try discriminate.
-          *** simpl. simpl in E2. assumption.
-          *** simpl. induction (count_Fand p2) eqn:Em.
-              -- simpl. destruct f1; try discriminate.
-                --- destruct f2 eqn:Ef2; try discriminate.
-                    ++ simpl. 
-                    (* OBS LAV ET LEMMA HVOR Em => CS(O(p))=ønsket *)
-               simpl in IH1.
-              
-           simpl.  simpl in E2.  
-       unfold count_steps in E2. unfold count_steps in H.
-      destruct 
-       simpl in E2. rewrite H in E2. admit.
-      * admit.  
-
-    destruct IH1; destruct IH2.
-  admit. *)
-  - simpl in H2. discriminate.
-  - simpl. simpl in H1. simpl in H2. simpl in H3.
-    assert (H1': neg_applied_to_non_literals p = false).
-    {
-      destruct p; 
-      try discriminate; try assumption.  
-    }
-    clear H1.
-    apply IHp; auto.
-Admitted.
-
-Lemma optimizerCNF_step_preserves_neg_applied_to_non_literals : forall p,
-  neg_applied_to_non_literals p = neg_applied_to_non_literals (optimizerCNF_step p).
-Proof.
-  intros p.
-  set (n:= count_Fand p). 
-  (* generalize dependent p. *)
-  induction n eqn:En.
-  - induction p; try reflexivity.
-    + discriminate.
-    + simpl.
-      destruct p1 eqn:Ep1, p2 eqn:Ep2;
-      try discriminate;
-      try reflexivity;
-      try (simpl in IHp2; simpl; apply IHp2; simpl in n; subst n; assumption);
-      try (
-        simpl; 
-        simpl in IHp1; 
-        repeat (rewrite orb_false_r); 
-        apply IHp1; 
-        simpl in n; 
-        subst n;
-        rewrite Nat.add_0_r in En;
-        assumption).
-      * simpl. admit.
-      (* apply Nat.add_
-       simpl in IHp1. simpl. repeat (rewrite orb_false_r). apply IHp1.
-        simpl in n. subst n. rewrite Nat.add_0_r in En. assumption.  *)
-(*         
-        assumpion.
-      reflexivity. simpl in IHp1.  *)
-      * admit.
-      *admit.
-      *admit.
-      *admit.
-      *admit.
-      *admit.
-      *admit.
-      *admit.
-      *admit.
-      *admit.
-      *admit.
-    + admit.
-    + admit.
-  - induction p; try reflexivity.
-    + simpl. simpl in IHn0. apply IHn0. discriminate
-  admit. 
-  admit.
-  - admit.
-  - induction p; try reflexivity.
-    + admit.
-
-   admit.
-  - apply IHn.
-
-
-  induction p;
-  try reflexivity.
-  - simpl. rewrite IHp1. rewrite IHp2. reflexivity.
-  - simpl.
-
-Lemma optimizerCNF_step_preserves_implication_is_present
-
-Lemma optimizerCNF_step_preserves_illegal_boolean_formulas_are_present
-
-
-
-
 (* Kom initially til at bruge den samlede betegnelse for de tre *)
 Lemma PLS : forall p,
   neg_applied_to_non_literals p = false ->
@@ -1893,51 +1420,16 @@ Proof.
     + simpl. right. rewrite H. 
       apply count_step_0_impl_CNF_step_count_step_0 in H. 
       rewrite H.
-      repeat rewrite Nat.max_0_l. assumption.
+      repeat rewrite Nat.add_0_l. assumption.
     + simpl. right. rewrite H0. 
       apply count_step_0_impl_CNF_step_count_step_0 in H0. 
       rewrite H0.
-      repeat rewrite Nat.max_0_r. assumption. 
-    + right. admit.
+      repeat rewrite Nat.add_0_r. assumption. 
+    + right. simpl.
+      apply Nat.add_lt_mono; auto.
 
-  - simpl. simpl in H1. simpl in H2. simpl in H3.
-    apply orb_false_elim in H1. apply orb_false_elim in H2.
-    destruct H1 as [H1A H1B]. destruct H2 as [H2A H2B].
-    assert (H3A: illegal_boolean_formulas_are_present p1 = false).
-    {
-      destruct p1, p2; 
-      try discriminate; 
-      apply orb_false_elim in H3;
-      destruct H3;
-      assumption.
-    }
-    assert (H3B: illegal_boolean_formulas_are_present p2 = false).
-    {
-      destruct p1, p2; 
-      try discriminate; 
-      apply orb_false_elim in H3;
-      destruct H3;
-      assumption.
-    }
-    clear H3.
-
-    assert (IH1: count_steps p1 0 = 0 \/ count_steps (optimizerCNF_step p1) 0 < count_steps p1 0); try auto.
-    assert (IH2: count_steps p2 0 = 0 \/ count_steps (optimizerCNF_step p2) 0 < count_steps p2 0); try auto.
-
-    destruct IH1; destruct IH2.
-    + left. rewrite H. rewrite H0. reflexivity.
-    + simpl. right. rewrite H. 
-      apply count_step_0_impl_CNF_step_count_step_0 in H. 
-      rewrite H.
-      repeat rewrite Nat.max_0_l. assumption.
-    + simpl. right. rewrite H0. 
-      apply count_step_0_impl_CNF_step_count_step_0 in H0. 
-      rewrite H0.
-      repeat rewrite Nat.max_0_r. assumption. 
-    + right. admit.
-
-    destruct p1 eqn:Ep1, p2 eqn:Ep2. 
-    (* set (n1 := count_Fand p1).
+  - simpl.
+    set (n1 := count_Fand p1).
     set (n2:= count_Fand p2).
     induction (count_Fand p1); induction (count_Fand p2).
     + set (n1' := count_Fand p1).
@@ -1946,8 +1438,7 @@ Proof.
       try discriminate;
       try (left; reflexivity).
     + 
-  simpl in H1. simpl in H2. simpl in H3.  *)
-  admit.
+  simpl in H1. simpl in H2. simpl in H3. admit.
 
   - simpl in H2. discriminate.
   - simpl. simpl in H1. simpl in H2. simpl in H3.
