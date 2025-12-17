@@ -384,8 +384,7 @@ Proof.
   induction p ; 
   simpl ; 
   try reflexivity.
-  - 
-    destruct (Optimizer p1) eqn: Ep1 ; 
+  - destruct (Optimizer p1) eqn: Ep1 ; 
     try (
           rwrt_2 IHp1 IHp2 ; 
           reflexivity
@@ -399,8 +398,7 @@ Proof.
           rwrt_2 IHp1 IHp2 ;
           apply andb_false_r 
         ).
-  - 
-    destruct (Optimizer p1) eqn: Ep1 ;
+  - destruct (Optimizer p1) eqn: Ep1 ;
     try (
           rwrt_2 IHp1 IHp2 ; 
           reflexivity
